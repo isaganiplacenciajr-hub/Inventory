@@ -1,0 +1,9 @@
+body{
+    font-family: 'Times New Roman', Times, serif; 
+    font-weight: 400;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-image: url(posbg.jpeg);
+    height: 100%;
+    width: 100%;
+  }

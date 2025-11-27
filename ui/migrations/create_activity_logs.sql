@@ -1,0 +1,9 @@
+-- create_activity_logs.sql
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user` VARCHAR(191) NOT NULL,
+  action VARCHAR(191) NOT NULL,
+  module VARCHAR(191) NOT NULL,
+  description TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
