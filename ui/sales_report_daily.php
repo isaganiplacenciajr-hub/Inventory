@@ -14,12 +14,11 @@ $start = $date;
 $end = $date;
 
 $sql = "SELECT i.invoice_id, i.order_date, d.product_name, d.qty, d.rate, d.saleprice AS line_total, 
-        COALESCE(p.additionalfee,0) AS additional_fee, i.payment_type 
+        d.addfee AS additional_fee, i.payment_type 
         FROM tbl_invoice i 
         JOIN tbl_invoice_details d ON i.invoice_id = d.invoice_id 
-        LEFT JOIN tbl_product p ON d.product_id = p.pid 
         WHERE DATE(i.order_date) BETWEEN :start AND :end 
-        ORDER BY i.order_date, i.invoice_id";
+        ORDER BY i.order_date DESC, i.invoice_id DESC";
 $q = $pdo->prepare($sql);
 $q->bindParam(':start', $start);
 $q->bindParam(':end', $end);
@@ -38,15 +37,14 @@ $totalLpgSold = 0;
 $totalAdditionalFees = 0.0;
 foreach ($rows as $r) { 
   $totalLpgSold += (int)$r['qty']; 
-  $totalAdditionalFees += (float)$r['additional_fee'] * (int)$r['qty'];
+  $totalAdditionalFees += (float)$r['additional_fee'];
 }
 
-// Compute Grand Total including add. fee
+// Compute Grand Total (sum of line totals which already include fees)
 $totalSalesStmt = $pdo->prepare("
-    SELECT COALESCE(SUM(d.saleprice + (COALESCE(p.additionalfee,0) * d.qty)), 0)
+    SELECT COALESCE(SUM(d.saleprice), 0)
     FROM tbl_invoice i
     JOIN tbl_invoice_details d ON i.invoice_id = d.invoice_id
-    LEFT JOIN tbl_product p ON d.product_id = p.pid
     WHERE DATE(i.order_date) BETWEEN :start AND :end
 ");
 $totalSalesStmt->bindParam(':start', $start);
@@ -148,14 +146,9 @@ $grandTotal = (float)$totalSalesStmt->fetchColumn();
                   <td><?php echo htmlspecialchars($r['order_date']); ?></td>
                   <td><?php echo htmlspecialchars($r['product_name']); ?></td>
                   <td><?php echo htmlspecialchars($r['qty']); ?></td>
-                  <?php $unitPrice = ((float)$r['qty']>0) ? ((float)$r['line_total']/(float)$r['qty']) : (float)$r['rate']; ?>
-                  <td>₱<?php echo number_format($unitPrice,2); ?></td>
-                  <td>₱<?php echo number_format($r['additional_fee'] * $r['qty'],2); ?></td>
-
-                  <?php 
-                    $totalWithFee = (float)$r['line_total'] + ((float)$r['additional_fee'] * (int)$r['qty']); 
-                  ?>
-                  <td>₱<?php echo number_format($totalWithFee,2); ?></td>
+                  <td>₱<?php echo number_format($r['rate'],2); ?></td>
+                  <td>₱<?php echo number_format($r['additional_fee'],2); ?></td>
+                  <td>₱<?php echo number_format($r['line_total'],2); ?></td>
 
                   <td>
                     <?php 
@@ -196,7 +189,7 @@ $grandTotal = (float)$totalSalesStmt->fetchColumn();
             <strong>Total Orders:</strong> <?php echo $totalOrders; ?> <br>
             <strong>Total LPG Sold (qty):</strong> <?php echo $totalLpgSold; ?> <br>
             <strong>Total Additional Fees:</strong> ₱<?php echo number_format($totalAdditionalFees,2); ?> <br>
-            <strong>Grand Total (Sales + Fees):</strong> ₱<?php echo number_format($grandTotal,2); ?> <br>
+            <strong>Grand Total (Sales):</strong> ₱<?php echo number_format($grandTotal,2); ?> <br>
           </div>
         </div>
       </div>

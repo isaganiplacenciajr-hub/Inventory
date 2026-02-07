@@ -22,12 +22,11 @@ $printUrl = $_SERVER['PHP_SELF'] . '?' . http_build_query(array_merge($_GET, ['p
 
 // Fetch data
 $sql = "SELECT i.invoice_id, i.order_date, d.product_name, d.qty, d.rate, d.saleprice AS line_total, 
-        COALESCE(p.additionalfee,0) AS additional_fee, i.payment_type 
+        d.addfee AS additional_fee, i.payment_type 
         FROM tbl_invoice i 
         JOIN tbl_invoice_details d ON i.invoice_id = d.invoice_id 
-        LEFT JOIN tbl_product p ON d.product_id = p.pid 
         WHERE DATE(i.order_date) BETWEEN :start AND :end 
-        ORDER BY i.order_date, i.invoice_id";
+        ORDER BY i.order_date DESC, i.invoice_id DESC";
 $q = $pdo->prepare($sql);
 $q->bindParam(':start', $start);
 $q->bindParam(':end', $end);
@@ -42,7 +41,7 @@ $totalLpgSold = 0;
 $totalAdditionalFees = 0.0;
 foreach ($rows as $r) { 
   $totalLpgSold += (int)$r['qty']; 
-  $totalAdditionalFees += (float)$r['additional_fee'] * (int)$r['qty'];
+  $totalAdditionalFees += (float)$r['additional_fee'];
 }
 
 $totalSales = $pdo->query("SELECT COALESCE(SUM(d.saleprice),0) 
@@ -50,7 +49,7 @@ $totalSales = $pdo->query("SELECT COALESCE(SUM(d.saleprice),0)
   JOIN tbl_invoice_details d ON i.invoice_id = d.invoice_id 
   WHERE DATE(i.order_date) BETWEEN '$start' AND '$end'")->fetchColumn();
 
-$grandTotal = $totalSales + $totalAdditionalFees;
+$grandTotal = $totalSales;
 ?>
 
 <style>
@@ -125,7 +124,6 @@ $grandTotal = $totalSales + $totalAdditionalFees;
               </thead>
               <tbody>
                 <?php foreach ($rows as $r): 
-                  $unitPrice = ((float)$r['qty']>0) ? ((float)$r['line_total']/(float)$r['qty']) : (float)$r['rate'];
                   $inv = $pdo->prepare('SELECT paid, due FROM tbl_invoice WHERE invoice_id = :id LIMIT 1');
                   $inv->bindValue(':id', $r['invoice_id'], PDO::PARAM_INT);
                   $inv->execute();
@@ -141,8 +139,8 @@ $grandTotal = $totalSales + $totalAdditionalFees;
                   <td><?php echo htmlspecialchars($r['order_date']); ?></td>
                   <td><?php echo htmlspecialchars($r['product_name']); ?></td>
                   <td><?php echo htmlspecialchars($r['qty']); ?></td>
-                  <td>₱ <?php echo number_format($unitPrice,2); ?></td>
-                  <td>₱ <?php echo number_format($r['additional_fee'] * $r['qty'],2); ?></td>
+                  <td>₱ <?php echo number_format($r['rate'],2); ?></td>
+                  <td>₱ <?php echo number_format($r['additional_fee'],2); ?></td>
                   <td>₱ <?php echo number_format($r['line_total'],2); ?></td>
                   <td>
                     <span class="badge <?php echo strtolower($r['payment_type'])=='cash' ? 'badge-cash' : 'badge-unknown'; ?>">

@@ -1,39 +1,46 @@
 <?php
 
-include_once'connectdb.php';
+include_once 'connectdb.php';
+include_once 'ArchiveManager.php';
+session_start();
 
-$id=$_POST['pidd'];
+// Verify user is logged in
+if (!isset($_SESSION['userid'])) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized: User not logged in']);
+    exit;
+}
 
+$id = $_POST['pidd'] ?? null;
 
+if (!$id) {
+    echo json_encode(['success' => false, 'message' => 'Invalid invoice ID']);
+    exit;
+}
 
-
-$select=$pdo->prepare("select * from table_invoice_details where invoice_id=$id");
-$select->execute();
-$row_invoice_details=$select->fetchAll(PDO::FETCH_ASSOC);
-
-
-
-foreach($row_invoice_details as $product_invoice_details){
-
-    $updateproduct_stock=$pdo->prepare("update tbl_product set stock=stock+"  .$product_invoice_details['qty']." where pid='".$product_invoice_details['product_id']."'");
-    $updateproduct_stock->execute();
+try {
+    // Initialize archive manager with current user
+    $archiveManager = new ArchiveManager($pdo, $_SESSION['userid']);
     
+    // Archive the invoice (moves to archive table instead of deleting)
+    $result = $archiveManager->archiveInvoice($id, 'Deleted from order list');
+    
+    if ($result['success']) {
+        echo json_encode([
+            'success' => true,
+            'message' => 'Order archived successfully'
+        ]);
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => $result['message']
+        ]);
     }
-     
     
-
-
-$sql="delete tbl_invoice,table_invoice_details from tbl_invoice INNER JOIN table_invoice_details ON tbl_invoice.invoice_id = table_invoice_details.invoice_id WHERE tbl_invoice.invoice_id = $id";
-
-$delete=$pdo->prepare($sql);
-
-if($delete->execute()){
-
-
-}else{
-
-
-    echo'error: Failed to delete';
+} catch (Exception $e) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Error: ' . $e->getMessage()
+    ]);
 }
 
 

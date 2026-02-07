@@ -7,7 +7,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'backup') {
   try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Detect current database name
+    
     $dbStmt = $pdo->query('SELECT DATABASE() as db');
     $dbRow = $dbStmt->fetch(PDO::FETCH_ASSOC);
     $databaseName = $dbRow && isset($dbRow['db']) ? $dbRow['db'] : 'database';
@@ -168,97 +168,203 @@ $lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
         <div class="row">
           <div class="col-lg-12">
 
-            <div class="card card-primary card-outline">
-              <div class="card-header"><h5 class="m-0">Backup and Restore</h5></div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="col-md-6">
-                    <form method="post">
-                      <input type="hidden" name="action" value="backup">
-                      <button type="submit" class="btn btn-success">Download Backup (SQL)</button>
-                    </form>
-                  </div>
-                  <div class="col-md-6">
-                    <form method="post" enctype="multipart/form-data">
-                      <input type="hidden" name="action" value="restore">
-                      <div class="form-group">
-                        <label>Restore from SQL file:</label>
-                        <input type="file" name="sqlfile" accept=".sql,text/sql" class="form-control-file" required>
+            <div class="accordion" id="utilitiesAccordion">
+
+              <!-- Backup & Restore -->
+              <div class="card">
+                <div class="card-header p-0" id="headingBackup">
+                  <h2 class="mb-0">
+                    <button class="btn btn-link btn-block text-left p-3" type="button" data-toggle="collapse" data-target="#collapseBackup" aria-expanded="true" aria-controls="collapseBackup">
+                      Backup &amp; Restore
+                    </button>
+                  </h2>
+                </div>
+                <div id="collapseBackup" class="collapse show" aria-labelledby="headingBackup" data-parent="#utilitiesAccordion">
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <form method="post">
+                          <input type="hidden" name="action" value="backup">
+                          <button type="submit" class="btn btn-success">Download Backup (SQL)</button>
+                        </form>
                       </div>
-                      <button type="submit" class="btn btn-warning" onclick="return confirm('This will modify the database. Proceed?')">Restore</button>
+                      <div class="col-md-6">
+                        <form method="post" enctype="multipart/form-data">
+                          <input type="hidden" name="action" value="restore">
+                          <div class="form-group">
+                            <label>Restore from SQL file:</label>
+                            <input type="file" name="sqlfile" accept=".sql,text/sql" class="form-control-file" required>
+                          </div>
+                          <button type="submit" class="btn btn-warning" onclick="return confirm('This will modify the database. Proceed?')">Restore</button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Add Stock -->
+              <div class="card">
+                <div class="card-header p-0" id="headingAddStock">
+                  <h2 class="mb-0">
+                    <button class="btn btn-link btn-block text-left p-3 collapsed" type="button" data-toggle="collapse" data-target="#collapseAddStock" aria-expanded="false" aria-controls="collapseAddStock">
+                      Add Stock
+                    </button>
+                  </h2>
+                </div>
+                <div id="collapseAddStock" class="collapse" aria-labelledby="headingAddStock" data-parent="#utilitiesAccordion">
+                  <div class="card-body">
+                    <form method="post">
+                      <input type="hidden" name="action" value="add_stock">
+                      <div class="form-row">
+                        <div class="form-group col-md-6">
+                          <label>Product Code</label>
+                          <input type="text" class="form-control" name="product_code" placeholder="Enter Product Code (tbl_product.product)" required>
+                        </div>
+                        <div class="form-group col-md-3">
+                          <label>Quantity to Add</label>
+                          <input type="number" class="form-control" name="quantity" min="1" step="1" required>
+                        </div>
+                      </div>
+                      <button type="submit" class="btn btn-primary">Add Stock</button>
                     </form>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="card card-info card-outline">
-              <div class="card-header"><h5 class="m-0">Add Stock</h5></div>
-              <div class="card-body">
-                <form method="post">
-                  <input type="hidden" name="action" value="add_stock">
-                  <div class="form-row">
-                    <div class="form-group col-md-6">
-                      <label>Product Code</label>
-                      <input type="text" class="form-control" name="product_code" placeholder="Enter Product Code (tbl_product.product)" required>
-                    </div>
-                    <div class="form-group col-md-3">
-                      <label>Quantity to Add</label>
-                      <input type="number" class="form-control" name="quantity" min="1" step="1" required>
+              <!-- Stock Monitoring -->
+              <div class="card">
+                <div class="card-header p-0" id="headingStockMonitor">
+                  <h2 class="mb-0">
+                    <button class="btn btn-link btn-block text-left p-3 collapsed" type="button" data-toggle="collapse" data-target="#collapseStockMonitor" aria-expanded="false" aria-controls="collapseStockMonitor">
+                      Stock Monitoring
+                    </button>
+                  </h2>
+                </div>
+                <div id="collapseStockMonitor" class="collapse" aria-labelledby="headingStockMonitor" data-parent="#utilitiesAccordion">
+                  <div class="card-body">
+                    <form method="get" class="form-inline mb-3">
+                      <label class="mr-2">Low stock threshold</label>
+                      <input type="number" class="form-control mr-2" name="low" value="<?php echo (int)$lowThreshold; ?>" min="0" step="1">
+                      <button class="btn btn-secondary" type="submit">Apply</button>
+                    </form>
+
+                    <div class="table-responsive">
+                      <table class="table table-hover table-striped">
+                        <thead>
+                          <tr>
+                            <th>Product Code</th>
+                            <th>Category</th>
+                            <th>Brand</th>
+                            <th class="text-right">Stock</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                        <?php if (!$products): ?>
+                          <tr><td colspan="5" class="text-center">No data</td></tr>
+                        <?php else: ?>
+                          <?php foreach ($products as $p): ?>
+                            <?php
+                              $stock = (int)$p['stock'];
+                              $low = $stock <= $lowThreshold;
+                            ?>
+                            <tr <?php echo $low ? 'style="background-color:#fff3cd"' : ''; ?>>
+                              <td><?php echo htmlspecialchars($p['product']); ?></td>
+                              <td><?php echo htmlspecialchars($p['category']); ?></td>
+                              <td><?php echo htmlspecialchars((string)$p['brand']); ?></td>
+                              <td class="text-right"><?php echo number_format($stock); ?></td>
+                              <td>
+                                <?php if ($low): ?>
+                                  <span class="badge badge-warning">Low</span>
+                                <?php else: ?>
+                                  <span class="badge badge-success">OK</span>
+                                <?php endif; ?>
+                              </td>
+                            </tr>
+                          <?php endforeach; ?>
+                        <?php endif; ?>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                  <button type="submit" class="btn btn-primary">Add Stock</button>
-                </form>
+                </div>
               </div>
-            </div>
 
-            <div class="card card-warning card-outline">
-              <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="m-0">Stock Monitoring</h5>
-                <form method="get" class="form-inline">
-                  <label class="mr-2">Low stock threshold</label>
-                  <input type="number" class="form-control mr-2" name="low" value="<?php echo (int)$lowThreshold; ?>" min="0" step="1">
-                  <button class="btn btn-secondary" type="submit">Apply</button>
-                </form>
+              <!-- Activity Log -->
+              <div class="card">
+                <div class="card-header p-0" id="headingActivity">
+                  <h2 class="mb-0">
+                    <button class="btn btn-link btn-block text-left p-3 collapsed" type="button" data-toggle="collapse" data-target="#collapseActivity" aria-expanded="false" aria-controls="collapseActivity">
+                      Activity Log
+                    </button>
+                  </h2>
+                </div>
+                <div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#utilitiesAccordion">
+                  <div class="card-body">
+                    <p>Open the Activity Log to review recorded actions.</p>
+                    <a href="activity_log.php" class="btn btn-info">Open Activity Log</a>
+                  </div>
+                </div>
               </div>
-              <div class="card-body table-responsive p-0">
-                <table class="table table-hover table-striped">
-                  <thead>
-                    <tr>
-                      <th>Product Code</th>
-                      <th>Category</th>
-                      <th>Brand</th>
-                      <th class="text-right">Stock</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                  <?php if (!$products): ?>
-                    <tr><td colspan="5" class="text-center">No data</td></tr>
-                  <?php else: ?>
-                    <?php foreach ($products as $p): ?>
-                      <?php
-                        $stock = (int)$p['stock'];
-                        $low = $stock <= $lowThreshold;
-                      ?>
-                      <tr <?php echo $low ? 'style="background-color:#fff3cd"' : ''; ?>>
-                        <td><?php echo htmlspecialchars($p['product']); ?></td>
-                        <td><?php echo htmlspecialchars($p['category']); ?></td>
-                        <td><?php echo htmlspecialchars((string)$p['brand']); ?></td>
-                        <td class="text-right"><?php echo number_format($stock); ?></td>
-                        <td>
-                          <?php if ($low): ?>
-                            <span class="badge badge-warning">Low</span>
-                          <?php else: ?>
-                            <span class="badge badge-success">OK</span>
-                          <?php endif; ?>
-                        </td>
-                      </tr>
-                    <?php endforeach; ?>
-                  <?php endif; ?>
-                  </tbody>
-                </table>
+
+              <!-- Archive  (Admin Only) -->
+              <?php if(isset($_SESSION['role']) && $_SESSION['role'] === 'Admin'): ?>
+              <div class="card">
+                <div class="card-header p-0" id="headingArchive">
+                  <h2 class="mb-0">
+                    <button class="btn btn-link btn-block text-left p-3 collapsed" type="button" data-toggle="collapse" data-target="#collapseArchive" aria-expanded="false" aria-controls="collapseArchive">
+                      <i class="fas fa-archive"></i> Archive
+                    </button>
+                  </h2>
+                </div>
+                <div id="collapseArchive" class="collapse" aria-labelledby="headingArchive" data-parent="#utilitiesAccordion">
+                  <div class="card-body">
+                    <p>Manage archived transactions. View, restore, or permanently delete archived orders.</p>
+                    <?php
+                    // Check if archive tables exist
+                    try {
+                      $checkTable = $pdo->query("SHOW TABLES LIKE 'tbl_invoice_archive'");
+                      if ($checkTable->rowCount() === 0) {
+                        // Tables don't exist, show setup button
+                        echo '<a href="archive_setup.php" class="btn btn-warning">';
+                        echo '<i class="fas fa-database"></i> Setup Archive Tables';
+                        echo '</a>';
+                      } else {
+                        // Tables exist, show normal button
+                        echo '<a href="archive.php" class="btn btn-warning">';
+                        echo '<i class="fas fa-archive"></i> Open Archive';
+                        echo '</a>';
+                      }
+                    } catch (Exception $e) {
+                      // If error, show setup button
+                      echo '<a href="archive_setup.php" class="btn btn-warning">';
+                      echo '<i class="fas fa-database"></i> Setup Archive Tables';
+                      echo '</a>';
+                    }
+                    ?>
+                  </div>
+                </div>
               </div>
+              <?php endif; ?>
+
+              <!-- Change Password -->
+              <div class="card">
+                <div class="card-header p-0" id="headingChangePass">
+                  <h2 class="mb-0">
+                    <button class="btn btn-link btn-block text-left p-3 collapsed" type="button" data-toggle="collapse" data-target="#collapseChangePass" aria-expanded="false" aria-controls="collapseChangePass">
+                      Change Password
+                    </button>
+                  </h2>
+                </div>
+                <div id="collapseChangePass" class="collapse" aria-labelledby="headingChangePass" data-parent="#utilitiesAccordion">
+                  <div class="card-body">
+                    <p>Change your account password.</p>
+                    <a href="changepassword.php" class="btn btn-warning">Change Password</a>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
           </div>
@@ -277,4 +383,3 @@ Swal && Swal.fire({
 });
 </script>
 <?php unset($_SESSION['status']); endif; ?>
-

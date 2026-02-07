@@ -1,228 +1,225 @@
+<?php
+// ❗ NO session_start() HERE
+// session_start() is handled in headeruser.php
+include_once 'connectdb.php';
+
+if (!isset($_SESSION['username']) || $_SESSION['username'] === '') {
+  header('Location: ../index.php');
+  exit;
+}
+?>
 <!DOCTYPE html>
-<!--
-This is a starter template page. Use this page to start your new project from
-scratch. This page gets rid of all links and provides the needed markup only.
--->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>POS | Inventory SYSTEMS</title>
+  <title>User Dashboard</title>
 
-  <!-- Google Font: Source Sans Pro -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
-  <!-- Font Awesome Icons -->
+  <!-- Google Font -->
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="../plugins/fontawesome-free/css/all.min.css">
-  <!-- Theme style -->
+
+  <!-- AdminLTE -->
   <link rel="stylesheet" href="../dist/css/adminlte.min.css">
+
+  <style>
+    .brand-link {
+      text-align: center;
+    }
+    .brand-text {
+      display: block;
+      width: 100%;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* 🔥 REMOVE EXTRA SPACE */
+    html, body {
+      height: auto !important;
+    }
+
+    .content-wrapper {
+      padding-top: 0 !important;
+      min-height: unset !important;
+      height: auto !important;
+    }
+
+    .content-header {
+      padding: 5px 15px;
+      margin-bottom: 0;
+    }
+
+    .content {
+      min-height: unset !important;
+      padding-bottom: 10px !important;
+    }
+
+    .card {
+      margin-bottom: 0;
+    }
+  </style>
 </head>
-<body class="hold-transition sidebar-mini">
+
+<body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
 
   <!-- Navbar -->
   <nav class="main-header navbar navbar-expand navbar-white navbar-light">
-    <!-- Left navbar links -->
     <ul class="navbar-nav">
       <li class="nav-item">
-        <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
-      </li>
-      <li class="nav-item d-none d-sm-inline-block">
-        <!--<a href="index3.html" class="nav-link">Home</a>-->
-      </li>
-      <li class="nav-item d-none d-sm-inline-block">
-        <!--<a href="#" class="nav-link">Contact</a>-->
-      </li>
-    </ul>
-
-    <!-- Right navbar links -->
-    <ul class="navbar-nav ml-auto">
-      <!-- Navbar Search -->
-      <li class="nav-item">
-        <a class="nav-link" data-widget="navbar-search" href="#" role="button">
-          <i class="fas fa-search"></i>
-        </a>
-        <div class="navbar-search-block">
-          <form class="form-inline">
-            <div class="input-group input-group-sm">
-              <input class="form-control form-control-navbar" type="search" placeholder="Search" aria-label="Search">
-              <div class="input-group-append">
-                <button class="btn btn-navbar" type="submit">
-                  <i class="fas fa-search"></i>
-                </button>
-                <button class="btn btn-navbar" type="button" data-widget="navbar-search">
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </li>
-
-      <!-- Messages Dropdown Menu -->
-      <li class="nav-item dropdown">
-        <a class="nav-link" data-toggle="dropdown" href="#">
-          <i class="far fa-comments"></i>
-          <span class="badge badge-danger navbar-badge">3</span>
-        </a>
-        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-          <a href="#" class="dropdown-item">
-            <!-- Message Start -->
-            <div class="media">
-              <img src="dist/img/user1-128x128.jpg" alt="User Avatar" class="img-size-50 mr-3 img-circle">
-              <div class="media-body">
-                <h3 class="dropdown-item-title">
-                  Brad Diesel
-                  <span class="float-right text-sm text-danger"><i class="fas fa-star"></i></span>
-                </h3>
-                <p class="text-sm">Call me whenever you can...</p>
-                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-              </div>
-            </div>
-            <!-- Message End -->
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <!-- Message Start -->
-            <div class="media">
-              <img src="../dist/img/user8-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
-              <div class="media-body">
-                <h3 class="dropdown-item-title">
-                  John Pierce
-                  <span class="float-right text-sm text-muted"><i class="fas fa-star"></i></span>
-                </h3>
-                <p class="text-sm">I got your message bro</p>
-                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-              </div>
-            </div>
-            <!-- Message End -->
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <!-- Message Start -->
-            <div class="media">
-              <img src="../dist/img/user3-128x128.jpg" alt="User Avatar" class="img-size-50 img-circle mr-3">
-              <div class="media-body">
-                <h3 class="dropdown-item-title">
-                  Nora Silvester
-                  <span class="float-right text-sm text-warning"><i class="fas fa-star"></i></span>
-                </h3>
-                <p class="text-sm">The subject goes here</p>
-                <p class="text-sm text-muted"><i class="far fa-clock mr-1"></i> 4 Hours Ago</p>
-              </div>
-            </div>
-            <!-- Message End -->
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>
-        </div>
-      </li>
-      <!-- Notifications Dropdown Menu -->
-      <li class="nav-item dropdown">
-        <a class="nav-link" data-toggle="dropdown" href="#">
-          <i class="far fa-bell"></i>
-          <span class="badge badge-warning navbar-badge">15</span>
-        </a>
-        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-          <span class="dropdown-header">15 Notifications</span>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <i class="fas fa-envelope mr-2"></i> 4 new messages
-            <span class="float-right text-muted text-sm">3 mins</span>
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <i class="fas fa-users mr-2"></i> 8 friend requests
-            <span class="float-right text-muted text-sm">12 hours</span>
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item">
-            <i class="fas fa-file mr-2"></i> 3 new reports
-            <span class="float-right text-muted text-sm">2 days</span>
-          </a>
-          <div class="dropdown-divider"></div>
-          <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
-        </div>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" data-widget="fullscreen" href="#" role="button">
-          <i class="fas fa-expand-arrows-alt"></i>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
-          <i class="fas fa-th-large"></i>
+        <a class="nav-link" data-widget="pushmenu" href="#">
+          <i class="fas fa-bars"></i>
         </a>
       </li>
     </ul>
   </nav>
-  <!-- /.navbar -->
 
-  <!-- Main Sidebar Container -->
+  <!-- Sidebar -->
   <aside class="main-sidebar sidebar-dark-primary elevation-4">
-    <!-- Brand Logo -->
-    <a href="index3.html" class="brand-link">
-      <img src="../dist/img/AdminLTELogo.png" alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
-      <span class="brand-text font-weight-light">POS Isagani</span>
+    <a href="dashboard.php" class="brand-link">
+      <span class="brand-text">USER DASHBOARD</span>
     </a>
 
-    <!-- Sidebar -->
     <div class="sidebar">
-      <!-- Sidebar user panel (optional) -->
       <div class="user-panel mt-3 pb-3 mb-3 d-flex">
         <div class="image">
-          <img src="../dist/img/user2-160x160.jpg" class="img-circle elevation-2" alt="User Image">
+          <img src="../dist/img/Spmlogo.jpg" class="img-circle elevation-2" alt="User Image">
         </div>
         <div class="info">
           <a href="#" class="d-block"><?php echo $_SESSION['username']; ?></a>
         </div>
       </div>
 
-      <!-- SidebarSearch Form -->
-      <div class="form-inline">
-        <div class="input-group" data-widget="sidebar-search">
-          <input class="form-control form-control-sidebar" type="search" placeholder="Search" aria-label="Search">
-          <div class="input-group-append">
-            <button class="btn btn-sidebar">
-              <i class="fas fa-search fa-fw"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sidebar Menu -->
       <nav class="mt-2">
-        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-          <!-- Add icons to the links using the .nav-icon class
-               with font-awesome or any other icon font library -->
-          
+        <ul class="nav nav-pills nav-sidebar flex-column">
           <li class="nav-item">
-            <a href="#" class="nav-link">
-              <i class="nav-icon fas fa-th"></i>
-              <p>
-                Dashboard
-                
-              </p>
+            <a href="dashboard.php" class="nav-link active">
+              <i class="nav-icon fas fa-tachometer-alt"></i>
+              <p>Dashboard</p>
             </a>
           </li>
-
-         
-
-          
-        
 
           <li class="nav-item">
             <a href="logout.php" class="nav-link">
-              <i class="nav-icon fas fa-th"></i>
-              <p>
-                Logout
-                
-              </p>
+              <i class="nav-icon fas fa-sign-out-alt"></i>
+              <p>Logout</p>
             </a>
           </li>
-          
         </ul>
       </nav>
-      <!-- /.sidebar-menu -->
     </div>
-    <!-- /.sidebar -->
   </aside>
+
+  <!-- CONTENT -->
+  <div class="content-wrapper">
+
+    <div class="content-header">
+      <h1 class="m-0">User Dashboard</h1>
+    </div>
+
+    <section class="content">
+      <div class="container-fluid">
+
+        <!-- 🔵 WELCOME BANNER -->
+        <div class="card bg-primary rounded-0">
+          <div class="card-body text-center py-2">
+            <h5 class="m-0 text-white">
+              Welcome — Hello User <b><?php echo $_SESSION['username']; ?></b>, welcome back!
+            </h5>
+          </div>
+        </div>
+
+        <!-- DASHBOARD CARDS -->
+        <div class="row mt-3">
+
+          <!-- TODAY'S SALES -->
+          <div class="col-lg-4 col-12 mb-3">
+            <div class="card shadow-sm border-0">
+              <div class="card-body d-flex align-items-center">
+                <div class="mr-3 text-primary">
+                  <i class="fas fa-coins fa-2x"></i>
+                </div>
+                <div>
+                  <div class="text-muted">Today's Sales</div>
+                  <h3 class="mb-0">
+                    <?php
+                      $today = date('Y-m-d');
+                      $stmt = $pdo->prepare("SELECT SUM(total) FROM tbl_invoice WHERE order_date = :d");
+                      $stmt->execute([':d' => $today]);
+                      echo '₱' . number_format($stmt->fetchColumn() ?: 0, 2);
+                    ?>
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TODAY'S TRANSACTIONS -->
+          <div class="col-lg-4 col-12 mb-3">
+            <div class="card shadow-sm border-0">
+              <div class="card-body d-flex align-items-center">
+                <div class="mr-3 text-success">
+                  <i class="fas fa-file-invoice fa-2x"></i>
+                </div>
+                <div>
+                  <div class="text-muted">Today's Transactions</div>
+                  <h3 class="mb-0">
+                    <?php
+                      $stmt = $pdo->prepare("SELECT COUNT(*) FROM tbl_invoice WHERE order_date = :d");
+                      $stmt->execute([':d' => $today]);
+                      echo (int)$stmt->fetchColumn();
+                    ?>
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STOCK ALERTS -->
+          <div class="col-lg-4 col-12 mb-3">
+            <div class="card shadow-sm border-0">
+              <div class="card-body">
+                <h5 class="mb-3">Stock Alerts</h5>
+
+                <?php
+                  $stmt = $pdo->query("
+                    SELECT
+                      SUM(CASE WHEN COALESCE(stock,0) = 0 THEN 1 ELSE 0 END) AS out_count,
+                      SUM(CASE WHEN COALESCE(stock,0) > 0 AND COALESCE(stock,0) <= 15 THEN 1 ELSE 0 END) AS low_count
+                    FROM tbl_product
+                  ");
+                  $r = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                  $out = (int)$r['out_count'];
+                  $low = (int)$r['low_count'];
+
+                  if ($out > 0) {
+                    echo '<div class="mb-2">❌ <strong>Out of stock detected</strong></div>';
+                  }
+                  if ($low > 0) {
+                    echo '<div class="mb-2">⚠️ <strong>Low stock detected</strong></div>';
+                  }
+                  if ($out === 0 && $low === 0) {
+                    echo '<div class="text-success font-weight-bold">✅ All stocks are sufficient</div>';
+                  }
+                ?>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="../plugins/jquery/jquery.min.js"></script>
+<script src="../plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="../dist/js/adminlte.min.js"></script>
+
+</body>
+</html>

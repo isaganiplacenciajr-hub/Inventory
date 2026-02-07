@@ -14,21 +14,21 @@ $pdf->SetAutoPageBreak(false);
 $pdf->AddPage();
 $pdf->SetMargins(6, 4, 6);
 
-function addSummaryRow($pdf, $label, $value, $showPhp = true) {
+function addSummaryRow($pdf, $label, $value, $showPhp = true, $isUpper = true) {
     $pdf->SetX(6);
     $pdf->SetFont('Courier', 'B', 8);
-    $pdf->Cell(35, 5, strtoupper($label), 0, 0, 'L');
+    $pdf->Cell(35, 5, $isUpper ? strtoupper($label) : $label, 0, 0, 'L');
     $displayValue = $showPhp ? 'Php ' . $value : $value;
     $pdf->Cell(26, 5, $displayValue, 0, 1, 'R');
 }
 
 // ===== HEADER =====
 $pdf->SetFont('Arial', 'B', 12);
-$pdf->Cell(68, 6, 'SPM LPG Trading', 0, 1, 'C');
+$pdf->Cell(0, 6, 'SPM LPG Trading', 0, 1, 'C');
+
 
 $pdf->SetFont('Arial', '', 8);
-$pdf->Cell(68, 4, 'Branches: San Isidro | Sawmil | Matain', 0, 1, 'C');
-$pdf->Cell(68, 4, 'Subic, Zambales', 0, 1, 'C');
+$pdf->Cell(68, 4, 'Matain, Subic, Zambales Branch', 0, 1, 'C');
 $pdf->Cell(68, 4, 'Contact: 0981-243-6970', 0, 1, 'C');
 $pdf->Ln(2);
 $y = $pdf->GetY();
@@ -70,7 +70,7 @@ $totalAddFee = 0;
 
 while ($product = $select->fetch(PDO::FETCH_OBJ)) {
     $pdf->SetX(6);
-    $unit_price = $product->qty > 0 ? $product->saleprice / $product->qty : $product->saleprice;
+    $unit_price = $product->rate;
     $total_price = $unit_price * $product->qty;
 
     $pdf->Cell(30, 5, substr($product->product_name, 0, 28), 1, 0, 'L');
@@ -102,7 +102,12 @@ $pdf->SetFont('Courier', 'B', 8);
 $subtotal = $row->subtotal ?? 0;
 $discount_pct = $row->discount ?? 0; 
 $discount_rs = ($discount_pct / 100) * $subtotal;
-$gtotal = $subtotal + $totalAddFee - $discount_rs;
+
+// Fix: subtotal from DB already includes the fee. 
+// We want to show: Items Subtotal + Fee - Discount = Total
+$netSubtotal = $subtotal - $totalAddFee;
+$gtotal = $subtotal - $discount_rs;
+
 $paid = $row->paid ?? 0;
 
 // FIXED: accurate due/change computation
@@ -115,10 +120,10 @@ if ($paid < $gtotal) {
 }
 
 // Format numbers
-addSummaryRow($pdf, 'Subtotal', number_format($subtotal, 2));
+addSummaryRow($pdf, 'Subtotal', number_format($netSubtotal, 2));
 addSummaryRow($pdf, 'Add. Fee', number_format($totalAddFee, 2));
 addSummaryRow($pdf, 'Discount(&)', $discount_pct, false);
-addSummaryRow($pdf, 'Discount(php)', number_format($discount_rs, 2));
+addSummaryRow($pdf, 'DISCOUNT (Php)', number_format($discount_rs, 2), true, false);
 addSummaryRow($pdf, 'G-Total', number_format($gtotal, 2));
 addSummaryRow($pdf, 'Paid', number_format($paid, 2));
 

@@ -138,11 +138,23 @@ while ($row = $select->fetch(PDO::FETCH_OBJ)) {
             type: "post",
             data: { pidd: id },
             success: function(data) {
-              tdh.parents('tr').hide();
+              try {
+                var response = typeof data === 'string' ? JSON.parse(data) : data;
+                
+                if (response.success) {
+                  tdh.parents('tr').hide();
+                  Swal.fire("Archived!", "Order has been moved to archive", "success");
+                } else {
+                  Swal.fire("Error!", response.message || "Failed to archive order", "error");
+                }
+              } catch (e) {
+                Swal.fire("Error!", "Invalid response from server", "error");
+              }
+            },
+            error: function(xhr, status, error) {
+              Swal.fire("Error!", "Failed to delete order: " + error, "error");
             }
           });
-
-          Swal.fire("Deleted!", "Order deleted successfully", "success");
         }
       });
     });

@@ -285,9 +285,18 @@ $row = $select->fetch(PDO::FETCH_OBJ);
    */
   function addRow(pid, product, brand, category, expirydate, saleprice, stock, servicetype, addfee) {
     const unitPrice = parseFloat(saleprice) || 0;
-    const addFee = parseFloat(addfee) || 0;
     const qtyDefault = 1;
-    const lineTotal = (unitPrice * qtyDefault) + addFee;
+    
+    // Determine fee based on service type
+    let feePerQty = 0;
+    if (servicetype === 'Delivery') {
+      feePerQty = 50;
+    } else {
+      feePerQty = 0;
+    }
+    
+    const totalFee = feePerQty * qtyDefault;
+    const lineTotal = (unitPrice * qtyDefault) + totalFee;
 
     const tr = `
       <tr data-pid="${pid}">
@@ -323,15 +332,13 @@ $row = $select->fetch(PDO::FETCH_OBJ);
         </td>
 
         <td style="text-align:left; vertical-align:middle; font-size:17px;">
-          <select class="form-control service-select" name="service_c_arr[]">
-            <option value="Pick up">Pick up</option>
-            <option value="Delivery">Delivery</option>
-          </select>
+          <span class="badge badge-info service-display">${servicetype}</span>
+          <input type="hidden" name="service_c_arr[]" class="service-input" value="${servicetype}">
         </td>
 
         <td style="text-align:left; vertical-align:middle; font-size:17px;">
-          <span class="badge badge-primary addfee-display">${addFee.toFixed(2)}</span>
-          <input type="hidden" class="addfee" name="addfee_c_arr[]" value="${addFee.toFixed(2)}">
+          <span class="badge badge-primary addfee-display">${totalFee.toFixed(2)}</span>
+          <input type="hidden" class="addfee" name="addfee_c_arr[]" value="${totalFee.toFixed(2)}">
         </td>
 
         <td style="text-align:left; vertical-align:middle; font-size:17px;">
@@ -351,8 +358,6 @@ $row = $select->fetch(PDO::FETCH_OBJ);
 
     // Append row and recalc totals
     $('.details').append(tr);
-    // set initial service value and ensure calculations correct
-    setServiceSelectForPid(pid, servicetype);
     calculate(0, 0);
   }
 
@@ -372,11 +377,12 @@ $row = $select->fetch(PDO::FETCH_OBJ);
             const qtyEl = $('#qty_id' + data.pid);
             qtyEl.val((parseInt(qtyEl.val() || 0, 10) + 1)).trigger('change');
           } else {
-            const defaultService = 'Pick up';
-            const defaultAddFee = 0;
-            addRow(data.pid, data.product, data.brand, data.category, data.expirydate, data.saleprice, data.stock, defaultService, defaultAddFee);
+            // Use data from DB
+            const service = data.servicetype || 'Pick up';
+            const addFee = parseFloat(data.additionalfee) || 0; 
+            
+            addRow(data.pid, data.product, data.brand, data.category, data.expirydate, data.saleprice, data.stock, service, addFee);
             productarr.push(String(data.pid));
-            setServiceSelectForPid(data.pid, defaultService);
           }
           $('#txtbarcode_id').val('');
         }
@@ -398,40 +404,41 @@ $row = $select->fetch(PDO::FETCH_OBJ);
             const qtyEl = $('#qty_id' + data.pid);
             qtyEl.val((parseInt(qtyEl.val() || 0, 10) + 1)).trigger('change');
           } else {
-            const defaultService = 'Pick up';
-            const defaultAddFee = 0;
-            addRow(data.pid, data.product, data.brand, data.category, data.expirydate, data.saleprice, data.stock, defaultService, defaultAddFee);
+            const service = data.servicetype || 'Pick up';
+            const addFee = parseFloat(data.additionalfee) || 0;
+            addRow(data.pid, data.product, data.brand, data.category, data.expirydate, data.saleprice, data.stock, service, addFee);
             productarr.push(String(data.pid));
-            setServiceSelectForPid(data.pid, defaultService);
           }
           $('#product_select').val('').trigger('change');
         }
       });
     });
 
-    // Delegate qty and service change
-    $("#itemtable").on("input change", ".qty, .service-select", function () {
-  const $this = $(this);
-  const tr = $this.closest('tr');
-  const qty = parseInt(tr.find('.qty').val() || 0, 10);
-  const stock = parseInt(tr.find('.qty').data('stock') || tr.find('input[name="stock_c_arr[]"]').val() || 0, 10);
+    // Delegate qty change (service is no longer changeable)
+    $("#itemtable").on("input change", ".qty", function () {
+      const $this = $(this);
+      const tr = $this.closest('tr');
+      const qty = parseInt(tr.find('.qty').val() || 0, 10);
+      const stock = parseInt(tr.find('.qty').data('stock') || tr.find('input[name="stock_c_arr[]"]').val() || 0, 10);
 
-  if (qty > stock) {
-    swal.fire("WARNING!", "SORRY! This Much of Quantity Is Not Available", "warning");
-    tr.find('.qty').val(1);
-  }
+      if (qty > stock) {
+        swal.fire("WARNING!", "SORRY! This Much of Quantity Is Not Available", "warning");
+        tr.find('.qty').val(1);
+      }
 
-  // compute add fee based on service type and quantity
-  const serviceVal = tr.find('.service-select').val();
-  const feePerQty = 50;
-  const fee = (serviceVal === 'Delivery') ? (qty * feePerQty) : 0;
+      // Re-read current qty after validation
+      const validQty = parseInt(tr.find('.qty').val() || 0, 10);
+      
+      // compute add fee based on service type and quantity
+      const serviceVal = tr.find('.service-input').val();
+      const feePerQty = (serviceVal === 'Delivery') ? 50 : 0;
+      const fee = validQty * feePerQty;
 
-  tr.find('.addfee-display').text(parseFloat(fee).toFixed(2));
-  tr.find('.addfee').val(parseFloat(fee).toFixed(2));
+      tr.find('.addfee-display').text(parseFloat(fee).toFixed(2));
+      tr.find('.addfee').val(parseFloat(fee).toFixed(2));
 
-  updateRowTotal(tr[0]);
-  calculate(0, 0);
-
+      updateRowTotal(tr[0]);
+      calculate(0, 0);
     });
 
     // Remove row
@@ -451,18 +458,6 @@ $row = $select->fetch(PDO::FETCH_OBJ);
       calculate(parseFloat($("#txtdiscount_p").val() || 0), parseFloat($(this).val() || 0));
     });
   });
-
-  // Set service select for appended row by pid
-  function setServiceSelectForPid(pid, serviceValue) {
-    const row = $(`tr[data-pid="${pid}"]`);
-    row.find('.service-select').val(serviceValue);
-    // set addfee according to service
-    const addfee = (serviceValue === 'Delivery') ? 50 : 0;
-    row.find('.addfee-display').text(parseFloat(addfee).toFixed(2));
-    row.find('.addfee').val(parseFloat(addfee).toFixed(2));
-    updateRowTotal(row[0]);
-    calculate(0,0);
-  }
 
   // Recalculate one row total and update hidden input
   function updateRowTotal(row) {
