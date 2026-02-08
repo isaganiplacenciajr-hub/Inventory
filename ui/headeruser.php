@@ -44,7 +44,7 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === '') {
     .content-wrapper {
       padding-top: 0 !important;
       min-height: unset !important;
-      height: auto !important;
+      height: 90vh !important;
     }
 
     .content-header {

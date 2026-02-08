@@ -173,10 +173,10 @@ $row = $select->fetch(PDO::FETCH_OBJ);
           <div class="card-header"><h5 class="m-0">POS</h5></div>
           <div class="card-body">
             <div class="row">
-              <div class="col-md-8">
+              <div class="col-md-9">
                 <form action="" method="post" name="posform" id="posform">
-                  <select id="product_select" class="form-control select2" data-dropdown-css-class="select2-purple" style="width: 100%;">
-                    <option value=""> Select OR Search</option>
+                  <select id="product_select" class="form-control" style="width: 100%;">
+                    <option value=""> Select Product</option>
                     <?php echo fill_product($pdo); ?>
                   </select>
                   <br>
@@ -188,6 +188,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
                           <th>Product Code</th>
                           <th>Brand</th>
                           <th>Category</th>
+                          <th>Valve Type</th>
                           <th>Expiry</th>
                           <th>Price</th>
                           <th>QTY</th>
@@ -205,10 +206,16 @@ $row = $select->fetch(PDO::FETCH_OBJ);
                 <!-- form continues in right column -->
               </div>
 
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="input-group mb-2">
-                  <div class="input-group-prepend"><span class="input-group-text">SUBTOTAL(₱)</span></div>
+                  <div class="input-group-prepend"><span class="input-group-text">ITEM SUBTOTAL(₱)</span></div>
                   <input type="text" class="form-control" name="txtsubtotal" id="txtsubtotal_id" readonly>
+                  <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                </div>
+
+                <div class="input-group mb-2">
+                  <div class="input-group-prepend"><span class="input-group-text">SERVICE FEE(₱)</span></div>
+                  <input type="text" class="form-control" name="txtservicefee" id="txtservicefee" readonly>
                   <div class="input-group-append"><span class="input-group-text">₱</span></div>
                 </div>
 
@@ -253,6 +260,12 @@ $row = $select->fetch(PDO::FETCH_OBJ);
                   <div class="input-group-append"><span class="input-group-text">₱</span></div>
                 </div>
 
+                <div class="input-group mb-2">
+                  <div class="input-group-prepend"><span class="input-group-text">CHANGE(₱)</span></div>
+                  <input type="text" class="form-control" name="txtchange" id="txtchange" readonly>
+                  <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                </div>
+
                 <hr>
 
                 <div class="card-footer">
@@ -273,9 +286,8 @@ $row = $select->fetch(PDO::FETCH_OBJ);
 <?php require_once 'footer.php'; ?>
 
 <script>
-  // Initialize Select2 Elements
-  $('.select2').select2();
-  $('.select2bs4').select2({ theme: 'bootstrap4' });
+  // Initialize Select2 Elements (if any others exist, but product_select is now standard)
+  // $('.select2').select2(); // Disabled as per request to use simple dropdowns
 
   let productarr = [];
 
@@ -283,7 +295,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
    * addRow: inserts a new product row in the table
    * params order: pid, product, brand, category, expirydate, saleprice (unit), stock, servicetype, additionalfee
    */
-  function addRow(pid, product, brand, category, expirydate, saleprice, stock, servicetype, addfee) {
+  function addRow(pid, product, brand, category, valvetype, expirydate, saleprice, stock, servicetype, addfee) {
     const unitPrice = parseFloat(saleprice) || 0;
     const qtyDefault = 1;
     
@@ -317,6 +329,11 @@ $row = $select->fetch(PDO::FETCH_OBJ);
         </td>
 
         <td style="text-align:left; vertical-align:middle; font-size:17px;">
+          <span class="badge badge-secondary valvetype">${valvetype}</span>
+          <input type="hidden" name="valvetype_c_arr[]" value="${valvetype}">
+        </td>
+
+        <td style="text-align:left; vertical-align:middle; font-size:17px;">
           <span class="badge badge-secondary expiry">${expirydate}</span>
           <input type="hidden" name="expiry_c_arr[]" value="${expirydate}">
         </td>
@@ -331,9 +348,11 @@ $row = $select->fetch(PDO::FETCH_OBJ);
           <input type="hidden" name="stock_c_arr[]" value="${stock}">
         </td>
 
-        <td style="text-align:left; vertical-align:middle; font-size:17px;">
-          <span class="badge badge-info service-display">${servicetype}</span>
-          <input type="hidden" name="service_c_arr[]" class="service-input" value="${servicetype}">
+        <td style="text-align:left; vertical-align:middle;">
+          <select class="form-control form-control-sm service-select" name="service_c_arr[]">
+            <option value="Pick up" ${servicetype === 'Pick up' ? 'selected' : ''}>Pick up</option>
+            <option value="Delivery" ${servicetype === 'Delivery' ? 'selected' : ''}>Delivery</option>
+          </select>
         </td>
 
         <td style="text-align:left; vertical-align:middle; font-size:17px;">
@@ -381,7 +400,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
             const service = data.servicetype || 'Pick up';
             const addFee = parseFloat(data.additionalfee) || 0; 
             
-            addRow(data.pid, data.product, data.brand, data.category, data.expirydate, data.saleprice, data.stock, service, addFee);
+            addRow(data.pid, data.product, data.brand, data.category, data.valvetype, data.expirydate, data.saleprice, data.stock, service, addFee);
             productarr.push(String(data.pid));
           }
           $('#txtbarcode_id').val('');
@@ -406,15 +425,14 @@ $row = $select->fetch(PDO::FETCH_OBJ);
           } else {
             const service = data.servicetype || 'Pick up';
             const addFee = parseFloat(data.additionalfee) || 0;
-            addRow(data.pid, data.product, data.brand, data.category, data.expirydate, data.saleprice, data.stock, service, addFee);
+            addRow(data.pid, data.product, data.brand, data.category, data.valvetype || '', data.expirydate, data.saleprice, data.stock, service, addFee);
             productarr.push(String(data.pid));
           }
           $('#product_select').val('').trigger('change');
         }
       });
     });
-
-    // Delegate qty change (service is no longer changeable)
+    // Delegate qty change
     $("#itemtable").on("input change", ".qty", function () {
       const $this = $(this);
       const tr = $this.closest('tr');
@@ -422,7 +440,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
       const stock = parseInt(tr.find('.qty').data('stock') || tr.find('input[name="stock_c_arr[]"]').val() || 0, 10);
 
       if (qty > stock) {
-        swal.fire("WARNING!", "SORRY! This Much of Quantity Is Not Available", "warning");
+        Swal.fire("WARNING!", "SORRY! This Much of Quantity Is Not Available", "warning");
         tr.find('.qty').val(1);
       }
 
@@ -430,12 +448,30 @@ $row = $select->fetch(PDO::FETCH_OBJ);
       const validQty = parseInt(tr.find('.qty').val() || 0, 10);
       
       // compute add fee based on service type and quantity
-      const serviceVal = tr.find('.service-input').val();
+      const serviceVal = tr.find('.service-select').val();
       const feePerQty = (serviceVal === 'Delivery') ? 50 : 0;
       const fee = validQty * feePerQty;
 
-      tr.find('.addfee-display').text(parseFloat(fee).toFixed(2));
-      tr.find('.addfee').val(parseFloat(fee).toFixed(2));
+      tr.find('.addfee-display').text(fee.toFixed(2));
+      tr.find('.addfee').val(fee.toFixed(2));
+
+      updateRowTotal(tr[0]);
+      calculate(0, 0);
+    });
+
+    // Handle service type change
+    $("#itemtable").on("change", ".service-select", function () {
+      const $this = $(this);
+      const tr = $this.closest('tr');
+      const serviceVal = $this.val();
+      const qty = parseInt(tr.find('.qty').val() || 0, 10);
+      
+      
+      const feePerQty = (serviceVal === 'Delivery') ? 50 : 0;
+      const fee = qty * feePerQty;
+
+      tr.find('.addfee-display').text(fee.toFixed(2));
+      tr.find('.addfee').val(fee.toFixed(2));
 
       updateRowTotal(tr[0]);
       calculate(0, 0);
@@ -473,28 +509,48 @@ $row = $select->fetch(PDO::FETCH_OBJ);
   // Recompute subtotal, taxes, discount, total, due
   function calculate(discountPercent, paidAmt) {
     let subtotal = 0;
-    $(".saleprice").each(function () {
-      subtotal += parseFloat($(this).val() || 0);
+    let serviceFee = 0;
+
+    $(".details tr").each(function () {
+      const rowPrice = parseFloat($(this).find('.price').text() || 0);
+      const rowQty = parseFloat($(this).find('.qty').val() || 0);
+      const rowFee = parseFloat($(this).find('.addfee').val() || 0);
+
+      subtotal += (rowPrice * rowQty);
+      serviceFee += rowFee;
     });
 
     $("#txtsubtotal_id").val(subtotal.toFixed(2));
+    $("#txtservicefee").val(serviceFee.toFixed(2));
 
-    const sgstPct = parseFloat($("#txtsgst_id_p").val() || 0);
-    const cgstPct = parseFloat($("#txtcgst_id_p").val() || 0);
     const discountPct = parseFloat($("#txtdiscount_p").val() || 0);
-
-    const sgstN = (sgstPct / 100) * subtotal;
-    const cgstN = (cgstPct / 100) * subtotal;
     const discountN = (discountPct / 100) * subtotal;
 
-    $("#txtsgst_id_n").val(sgstN.toFixed(2));
-    $("#txtcgst_id_n").val(cgstN.toFixed(2));
     $("#txtdiscount_n").val(discountN.toFixed(2));
 
-    const total = subtotal + sgstN + cgstN - discountN;
-    const due = total - parseFloat(paidAmt || 0);
+    const total = subtotal + serviceFee - discountN;
+    const paid = parseFloat(paidAmt || 0);
+    const due = total; // Due is now fixed at the total amount
+    let change = paid - total;
+
+    if (change < 0) {
+      change = 0;
+    }
 
     $("#txttotal").val(total.toFixed(2));
     $("#txtdue").val(due.toFixed(2));
+    $("#txtchange").val(change.toFixed(2));
+
+    // Disable Save Order button if payment is insufficient
+    const btnSave = $("button[name='btnsaveorder']");
+    if (paid < (total - 0.01)) { // Using 0.01 to handle minor float precision issues
+      btnSave.prop('disabled', true);
+      btnSave.text("Incomplete Payment");
+      btnSave.removeClass('btn-success').addClass('btn-danger');
+    } else {
+      btnSave.prop('disabled', false);
+      btnSave.text("Save Order");
+      btnSave.removeClass('btn-danger').addClass('btn-success');
+    }
   }
 </script>

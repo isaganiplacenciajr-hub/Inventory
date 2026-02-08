@@ -162,14 +162,16 @@ $grandTotal = (float)$totalSalesStmt->fetchColumn();
                   <td>
                     <?php
                       $st = 'N/A';
-                      $inv = $pdo->prepare('SELECT paid, due FROM tbl_invoice WHERE invoice_id = :id LIMIT 1');
+                      $inv = $pdo->prepare('SELECT paid, total FROM tbl_invoice WHERE invoice_id = :id LIMIT 1');
                       $inv->bindValue(':id', $r['invoice_id'], PDO::PARAM_INT);
                       $inv->execute();
                       $invRow = $inv->fetch(PDO::FETCH_ASSOC);
                       if ($invRow) {
-                        if ((float)$invRow['due'] <= 0) {
+                        $p = (float)$invRow['paid'];
+                        $t = (float)$invRow['total'];
+                        if ($p >= $t - 0.01) {
                           $st = '<span class="badge-status badge-paid">Paid</span>';
-                        } elseif ((float)$invRow['paid'] > 0) {
+                        } elseif ($p > 0) {
                           $st = '<span class="badge-status badge-partial">Partial</span>';
                         } else {
                           $st = '<span class="badge-status badge-unpaid">Unpaid</span>';

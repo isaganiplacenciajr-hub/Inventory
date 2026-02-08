@@ -19,6 +19,96 @@ class ArchiveManager {
     public function __construct($pdo, $userid) {
         $this->pdo = $pdo;
         $this->userid = $userid;
+        // Ensure archive tables exist; auto-create if missing so archive works even after DB reset
+        $this->ensureArchiveTables();
+    }
+
+    /**
+     * Ensure archive DB tables exist. If they don't, create them.
+     * This allows archive operations to work even when the tables were dropped.
+     * Any errors are suppressed to avoid exposing internals to callers.
+     *
+     * @return void
+     */
+    private function ensureArchiveTables() {
+        try {
+            $check = $this->pdo->query("SHOW TABLES LIKE 'tbl_invoice_archive'")->fetch();
+            if ($check) {
+                return; // tables already exist
+            }
+
+            // Use the same CREATE TABLE definitions as the setup script
+            $sql_invoice_archive = "
+            CREATE TABLE IF NOT EXISTS `tbl_invoice_archive` (
+                `archive_id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `invoice_id` INT(11) NOT NULL,
+                `customer_name` VARCHAR(255) NULL,
+                `total_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0,
+                `payment_type` VARCHAR(50) NULL,
+                `order_date` DATE NOT NULL,
+                `subtotal` DECIMAL(10, 2) NULL,
+                `discount` DECIMAL(10, 2) NULL,
+                `tax` DECIMAL(10, 2) NULL,
+                `archived_by` INT(11) NOT NULL,
+                `archived_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `status` ENUM('archived', 'restored', 'permanently_deleted') DEFAULT 'archived',
+                KEY `idx_invoice_id` (`invoice_id`),
+                KEY `idx_order_date` (`order_date`),
+                KEY `idx_archived_at` (`archived_at`),
+                KEY `idx_status` (`status`),
+                KEY `idx_archived_by` (`archived_by`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+            ";
+
+            $sql_details_archive = "
+            CREATE TABLE IF NOT EXISTS `tbl_invoice_details_archive` (
+                `archive_detail_id` INT(11) NOT NULL AUTO_INCREMENT,
+                `detail_id` INT(11) NULL,
+                `invoice_id` INT(11) NOT NULL,
+                `product_id` INT(11) NOT NULL,
+                `product_name` VARCHAR(255) NOT NULL,
+                `qty` INT(11) NOT NULL,
+                `price` DECIMAL(10, 2) NOT NULL,
+                `total_price` DECIMAL(10, 2) NOT NULL,
+                `service_type` VARCHAR(100) NULL,
+                `additional_fee` DECIMAL(10, 2) NULL,
+                `archived_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`archive_detail_id`),
+                KEY `idx_invoice_id` (`invoice_id`),
+                KEY `idx_product_id` (`product_id`),
+                KEY `idx_archived_at` (`archived_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+            ";
+
+            $sql_activity_log = "
+            CREATE TABLE IF NOT EXISTS `tbl_archive_activity_log` (
+                `log_id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                `invoice_id` INT(11) NULL,
+                `action` VARCHAR(100) NOT NULL,
+                `description` TEXT NULL,
+                `user_id` INT(11) NOT NULL,
+                `user_email` VARCHAR(255) NULL,
+                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                KEY `idx_invoice_id` (`invoice_id`),
+                KEY `idx_action` (`action`),
+                KEY `idx_created_at` (`created_at`),
+                KEY `idx_user_id` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+            ";
+
+            // Execute creates in a transaction to keep DB consistent
+            $this->pdo->beginTransaction();
+            $this->pdo->exec($sql_invoice_archive);
+            $this->pdo->exec($sql_details_archive);
+            $this->pdo->exec($sql_activity_log);
+            $this->pdo->commit();
+
+        } catch (Exception $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            // Fail silently — archive operations will return errors if SQL differs
+        }
     }
     
     /**

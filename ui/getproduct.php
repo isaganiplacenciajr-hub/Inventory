@@ -16,7 +16,7 @@ try {
 
     // Fetch product info including servicetype and additionalfee
     $stmt = $pdo->prepare('
-        SELECT pid, product, category, saleprice, stock, brand, expirydate, description, image, servicetype, additionalfee 
+        SELECT pid, product, category, saleprice, stock, brand, valvetype, expirydate, description, image, servicetype, additionalfee 
         FROM tbl_product 
         WHERE pid = :id 
         LIMIT 1

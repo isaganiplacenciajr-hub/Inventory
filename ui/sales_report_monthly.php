@@ -124,13 +124,15 @@ $grandTotal = $totalSales;
               </thead>
               <tbody>
                 <?php foreach ($rows as $r): 
-                  $inv = $pdo->prepare('SELECT paid, due FROM tbl_invoice WHERE invoice_id = :id LIMIT 1');
+                  $inv = $pdo->prepare('SELECT paid, total FROM tbl_invoice WHERE invoice_id = :id LIMIT 1');
                   $inv->bindValue(':id', $r['invoice_id'], PDO::PARAM_INT);
                   $inv->execute();
                   $invRow = $inv->fetch(PDO::FETCH_ASSOC);
                   if ($invRow) {
-                    if ((float)$invRow['due'] <= 0) $status = 'Paid';
-                    elseif ((float)$invRow['paid'] > 0) $status = 'Partial';
+                    $p = (float)$invRow['paid'];
+                    $t = (float)$invRow['total'];
+                    if ($p >= $t - 0.01) $status = 'Paid';
+                    elseif ($p > 0) $status = 'Partial';
                     else $status = 'Unpaid';
                   } else $status = 'Unknown';
                 ?>

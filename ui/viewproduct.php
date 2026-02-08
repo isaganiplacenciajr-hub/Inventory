@@ -56,9 +56,7 @@ if($row = $select->fetch(PDO::FETCH_OBJ)){
     // Prepare safe/display values
     $productCode = htmlspecialchars($row->product);
     $category = htmlspecialchars($row->category);
-    $description = htmlspecialchars($row->description);
-    $servicetype = htmlspecialchars($row->servicetype);
-    $additionalfee = htmlspecialchars($row->additionalfee);
+    $valvetype = htmlspecialchars($row->valvetype);
     $purchaseprice = htmlspecialchars($row->purchaseprice);
     $saleprice = htmlspecialchars($row->saleprice);
     $profit = $saleprice - $purchaseprice;
@@ -66,6 +64,7 @@ if($row = $select->fetch(PDO::FETCH_OBJ)){
 
     // New fields
     $stock = isset($row->stock) ? intval($row->stock) : 0;
+    $addedstock = isset($row->addedstock) ? intval($row->addedstock) : 0;
     $brand = !empty($row->brand) ? htmlspecialchars($row->brand) : 'N/A';
     $expiryDisplay = (!empty($row->expirydate) && $row->expirydate != '0000-00-00') ? date('F j, Y', strtotime($row->expirydate)) : 'N/A';
 
@@ -80,15 +79,14 @@ echo '
 
    <li class="list-group-item"><b>Product Code</b><span class="badge badge-warning float-right">'.$productCode.'</span></li>
   <li class="list-group-item"><b>Category</b><span class="badge badge-success float-right">'.$category.'</span></li>
-  <li class="list-group-item"><b>Description</b><span class="badge badge-primary float-right">'.$description.'</span></li>
-  <li class="list-group-item"><b>Service Type</b><span class="badge badge-secondary float-right">'.$servicetype.'</span></li>
-  <li class="list-group-item"><b>Additional Fee</b><span class="badge badge-danger float-right">'.$additionalfee.'</span></li>
+  <li class="list-group-item"><b>Valve Type</b><span class="badge badge-primary float-right">'.$valvetype.'</span></li>
   <li class="list-group-item"><b>Purchase Price</b><span class="badge badge-secondary float-right">'.$purchaseprice.'</span></li>
   <li class="list-group-item"><b>Sale Price</b><span class="badge badge-dark float-right">'.$saleprice.'</span></li>
   
 
   <!-- New fields displayed -->
-  <li class="list-group-item"><b>Stock</b><span class="badge badge-info float-right">'.$stock.'</span></li>
+  <li class="list-group-item"><b>Quantity Added</b><span class="badge badge-warning float-right">'.$addedstock.'</span></li>
+  <li class="list-group-item"><b>Current Stock (Total)</b><span class="badge badge-info float-right">'.$stock.'</span></li>
   <li class="list-group-item"><b>Brand</b><span class="badge badge-light float-right">'.$brand.'</span></li>
   <li class="list-group-item"><b>Expiry Date</b><span class="badge badge-secondary float-right">'.$expiryDisplay.'</span></li>
 <li class="list-group-item"><b>Product Profit</b><span class="badge badge-success float-right">'.$profit.'</span></li>

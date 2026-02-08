@@ -99,40 +99,32 @@ $pdf->Ln(2);
 $pdf->SetFont('Courier', 'B', 8);
 
 // ===== SUMMARY =====
-$subtotal = $row->subtotal ?? 0;
+$itemSubtotal = $row->subtotal ?? 0;
 $discount_pct = $row->discount ?? 0; 
-$discount_rs = ($discount_pct / 100) * $subtotal;
-
-// Fix: subtotal from DB already includes the fee. 
-// We want to show: Items Subtotal + Fee - Discount = Total
-$netSubtotal = $subtotal - $totalAddFee;
-$gtotal = $subtotal - $discount_rs;
+$discount_rs = ($discount_pct / 100) * $itemSubtotal;
+$serviceFee = $totalAddFee;
+$gtotal = $row->total ?? ($itemSubtotal + $serviceFee - $discount_rs);
 
 $paid = $row->paid ?? 0;
-
-// FIXED: accurate due/change computation
-if ($paid < $gtotal) {
-    $due = $gtotal - $paid;
-    $change = 0;
-} else {
-    $due = 0;
-    $change = $paid - $gtotal;
-}
+$change = $paid - $gtotal;
+if($change < 0) $change = 0;
 
 // Format numbers
-addSummaryRow($pdf, 'Subtotal', number_format($netSubtotal, 2));
-addSummaryRow($pdf, 'Add. Fee', number_format($totalAddFee, 2));
-addSummaryRow($pdf, 'Discount(&)', $discount_pct, false);
-addSummaryRow($pdf, 'DISCOUNT (Php)', number_format($discount_rs, 2), true, false);
-addSummaryRow($pdf, 'G-Total', number_format($gtotal, 2));
+addSummaryRow($pdf, 'Item Subtotal', number_format($itemSubtotal, 2));
+addSummaryRow($pdf, 'Service Fee', number_format($serviceFee, 2));
+addSummaryRow($pdf, 'Discount (%)', $discount_pct . '%', false);
+addSummaryRow($pdf, 'Discount (Php)', number_format($discount_rs, 2), true, false);
+addSummaryRow($pdf, 'Grand Total', number_format($gtotal, 2));
 addSummaryRow($pdf, 'Paid', number_format($paid, 2));
 
-if ($due > 0) {
-    addSummaryRow($pdf, 'Due', number_format($due, 2));
-} elseif ($change > 0) {
+if ($change > 0) {
     addSummaryRow($pdf, 'Change', number_format($change, 2));
 } else {
-    addSummaryRow($pdf, 'Due', '0.00');
+    // Show Due as the total if not fully paid (matching User's "Due fixed" preference)
+    // but typically for a receipt it's better to show balance if due is unpaid.
+    // However, since POS prevents unpaid orders, Due will mostly be the reference total or 0.
+    // The user said "make the due fixed", so I will show the total as the due reference.
+    addSummaryRow($pdf, 'Due', number_format($gtotal, 2));
 }
 
 $pdf->Ln(2);

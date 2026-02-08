@@ -95,7 +95,7 @@
           <li class="nav-item">
             <a href="addproduct.php" class="nav-link">
               <i class="nav-icon fas fa-edit"></i>
-              <p>Add Product</p>
+              <p>Add Stock</p>
             </a>
           </li>
 
@@ -150,6 +150,13 @@
             </ul>
           </li>
 
+          <li class="nav-item">
+            <a href="stockmonitoring.php" class="nav-link">
+              <i class="nav-icon fas fa-chart-line"></i>
+              <p>Stock Monitoring</p>
+            </a>
+          </li>
+          
           <li class="nav-item">
             <a href="registration.php" class="nav-link">
               <i class="nav-icon fas fa-plus-square"></i>

@@ -136,17 +136,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'add_stock') {
 
 include_once 'header.php';
 
-// Fetch products for monitoring
-$products = [];
-try {
-  $stmt = $pdo->query('SELECT product, category, brand, COALESCE(stock,0) as stock FROM tbl_product ORDER BY stock ASC, product ASC');
-  $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (Throwable $e) {
-  $products = [];
-}
-
-// Low stock threshold (default 5)
-$lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
 ?>
 
   <div class="content-wrapper">
@@ -202,95 +191,7 @@ $lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
                   </div>
                 </div>
               </div>
-
-              <!-- Add Stock -->
-              <div class="card">
-                <div class="card-header p-0" id="headingAddStock">
-                  <h2 class="mb-0">
-                    <button class="btn btn-link btn-block text-left p-3 collapsed" type="button" data-toggle="collapse" data-target="#collapseAddStock" aria-expanded="false" aria-controls="collapseAddStock">
-                      Add Stock
-                    </button>
-                  </h2>
-                </div>
-                <div id="collapseAddStock" class="collapse" aria-labelledby="headingAddStock" data-parent="#utilitiesAccordion">
-                  <div class="card-body">
-                    <form method="post">
-                      <input type="hidden" name="action" value="add_stock">
-                      <div class="form-row">
-                        <div class="form-group col-md-6">
-                          <label>Product Code</label>
-                          <input type="text" class="form-control" name="product_code" placeholder="Enter Product Code (tbl_product.product)" required>
-                        </div>
-                        <div class="form-group col-md-3">
-                          <label>Quantity to Add</label>
-                          <input type="number" class="form-control" name="quantity" min="1" step="1" required>
-                        </div>
-                      </div>
-                      <button type="submit" class="btn btn-primary">Add Stock</button>
-                    </form>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Stock Monitoring -->
-              <div class="card">
-                <div class="card-header p-0" id="headingStockMonitor">
-                  <h2 class="mb-0">
-                    <button class="btn btn-link btn-block text-left p-3 collapsed" type="button" data-toggle="collapse" data-target="#collapseStockMonitor" aria-expanded="false" aria-controls="collapseStockMonitor">
-                      Stock Monitoring
-                    </button>
-                  </h2>
-                </div>
-                <div id="collapseStockMonitor" class="collapse" aria-labelledby="headingStockMonitor" data-parent="#utilitiesAccordion">
-                  <div class="card-body">
-                    <form method="get" class="form-inline mb-3">
-                      <label class="mr-2">Low stock threshold</label>
-                      <input type="number" class="form-control mr-2" name="low" value="<?php echo (int)$lowThreshold; ?>" min="0" step="1">
-                      <button class="btn btn-secondary" type="submit">Apply</button>
-                    </form>
-
-                    <div class="table-responsive">
-                      <table class="table table-hover table-striped">
-                        <thead>
-                          <tr>
-                            <th>Product Code</th>
-                            <th>Category</th>
-                            <th>Brand</th>
-                            <th class="text-right">Stock</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                        <?php if (!$products): ?>
-                          <tr><td colspan="5" class="text-center">No data</td></tr>
-                        <?php else: ?>
-                          <?php foreach ($products as $p): ?>
-                            <?php
-                              $stock = (int)$p['stock'];
-                              $low = $stock <= $lowThreshold;
-                            ?>
-                            <tr <?php echo $low ? 'style="background-color:#fff3cd"' : ''; ?>>
-                              <td><?php echo htmlspecialchars($p['product']); ?></td>
-                              <td><?php echo htmlspecialchars($p['category']); ?></td>
-                              <td><?php echo htmlspecialchars((string)$p['brand']); ?></td>
-                              <td class="text-right"><?php echo number_format($stock); ?></td>
-                              <td>
-                                <?php if ($low): ?>
-                                  <span class="badge badge-warning">Low</span>
-                                <?php else: ?>
-                                  <span class="badge badge-success">OK</span>
-                                <?php endif; ?>
-                              </td>
-                            </tr>
-                          <?php endforeach; ?>
-                        <?php endif; ?>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+              
               <!-- Activity Log -->
               <div class="card">
                 <div class="card-header p-0" id="headingActivity">
