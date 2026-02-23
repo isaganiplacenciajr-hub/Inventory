@@ -35,17 +35,6 @@ $lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
         </div>
     </div>
 
-    <div class="content">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="card card-primary card-outline">
-                        <div class="card-body">
-                            <form method="get" class="form-inline mb-3">
-                                <label class="mr-2">Low stock threshold</label>
-                                <input type="number" class="form-control mr-2" name="low" value="<?php echo (int)$lowThreshold; ?>" min="0" step="1">
-                                <button class="btn btn-secondary" type="submit">Apply</button>
-                            </form>
 
                             <div class="table-responsive">
                                 <table class="table table-hover table-striped">
@@ -55,7 +44,6 @@ $lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
                                             <th>Category</th>
                                             <th>Brand</th>
                                             <th class="text-right">Stock</th>
-                                            <th>Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -73,12 +61,7 @@ $lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
                                                     <td><?php echo htmlspecialchars((string)$p['brand']); ?></td>
                                                     <td class="text-right"><?php echo number_format($stock); ?></td>
                                                     <td>
-                                                        <?php if ($low): ?>
-                                                            <span class="badge badge-warning">Low</span>
-                                                        <?php else: ?>
-                                                            <span class="badge badge-success">OK</span>
-                                                        <?php endif; ?>
-                                                    </td>
+                                                      
                                                 </tr>
                                             <?php endforeach; ?>
                                         <?php endif; ?>

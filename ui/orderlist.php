@@ -34,6 +34,9 @@ include_once "header.php";
                 <thead>
                   <tr>
                     <th>Order ID</th>
+                    <th>Customer</th>
+                    <th>Contact</th>
+                    <th>Address</th>
                     <th>Product</th>
                     <th>QTY</th>
                     <th>Service Type</th>
@@ -52,7 +55,10 @@ include_once "header.php";
     inv.invoice_id,
     inv.order_date,
     inv.payment_type,
-    inv.total,               -- ✅ total now comes from tbl_invoice
+    inv.total,
+    inv.customer_name,
+    inv.customer_contact,
+    inv.customer_address,
     det.product_name,
     det.qty,
     det.servicetype,
@@ -66,12 +72,15 @@ $select->execute();
 while ($row = $select->fetch(PDO::FETCH_OBJ)) {
   echo '<tr>';
   echo '<td>' . htmlspecialchars($row->invoice_id) . '</td>';
+  echo '<td>' . htmlspecialchars($row->customer_name ?? 'N/A') . '</td>';
+  echo '<td>' . htmlspecialchars($row->customer_contact ?? 'N/A') . '</td>';
+  echo '<td>' . htmlspecialchars($row->customer_address ?? 'N/A') . '</td>';
   echo '<td>' . htmlspecialchars($row->product_name) . '</td>';
   echo '<td>' . htmlspecialchars($row->qty) . '</td>';
   echo '<td>' . htmlspecialchars($row->servicetype) . '</td>';
   echo '<td>₱' . number_format($row->addfee, 2) . '</td>';
 
-  // ✅ total now from tbl_invoice, not details
+  // total now from tbl_invoice, not details
   echo '<td><strong>₱' . number_format($row->total, 2) . '</strong></td>';
 
   echo '<td>' . htmlspecialchars($row->order_date) . '</td>';
@@ -87,9 +96,9 @@ while ($row = $select->fetch(PDO::FETCH_OBJ)) {
   echo '
     <td>
       <div class="btn-group">
-        <a href="printbill.php?id=' . $row->invoice_id . '" class="btn btn-warning" role="button">
+        <button class="btn btn-warning btnprint" data-invoice-id="' . $row->invoice_id . '" type="button">
           <span class="fa fa-print" style="color:#fff" data-toggle="tooltip" title="Print Bill"></span>
-        </a>
+        </button>
     
         <button id="' . $row->invoice_id . '" class="btn btn-danger btndelete">
           <span class="fa fa-trash" style="color:#fff" data-toggle="tooltip" title="Delete Order"></span>
@@ -113,11 +122,71 @@ while ($row = $select->fetch(PDO::FETCH_OBJ)) {
   </div>
 </div>
 
+<!-- Receipt Modal -->
+<div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-labelledby="receiptModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document" style="max-width: 480px;">
+    <div class="modal-content">
+      <div class="modal-header" style="padding: 12px 15px;">
+        <h5 class="modal-title" id="receiptModalLabel">Order Receipt</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="receiptContent" style="max-height: 70vh; overflow-y: auto; padding: 0;">
+        <!-- Receipt content will be loaded here -->
+      </div>
+      <div class="modal-footer" style="padding: 12px 15px;">
+        <button type="button" class="btn btn-primary btn-sm" id="btnPrintReceipt"><i class="fas fa-print"></i> Print</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <?php include_once "footer.php"; ?>
 
 <script>
   $(document).ready(function() {
     $('[data-toggle="tooltip"]').tooltip();
+
+    // Print button - load receipt in modal
+    $('.btnprint').click(function() {
+      var invoiceId = $(this).data('invoice-id');
+      
+      $('#receiptContent').load('get_receipt.php?id=' + invoiceId, function() {
+        $('#receiptModal').modal('show');
+      });
+    });
+
+    // Print receipt from modal
+    $('#btnPrintReceipt').click(function() {
+      const printWindow = window.open('', '', 'width=800,height=600');
+      const receiptContent = $('#receiptContent').html();
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Receipt</title>
+          <style>
+            body { font-family: 'Courier New', monospace; margin: 10px; }
+            @media print {
+              body { margin: 0; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${receiptContent}
+        </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    });
 
     $('.btndelete').click(function() {
       var tdh = $(this);

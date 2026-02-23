@@ -118,18 +118,19 @@ CREATE TABLE `tbl_product` (
   `stock` int(11) NOT NULL,
   `purchaseprice` float NOT NULL,
   `saleprice` float NOT NULL,
-  `image` varchar(200) NOT NULL
+  `image` varchar(200) NOT NULL,
+  `supplier_category` varchar(200) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tbl_product`
 --
 
-INSERT INTO `tbl_product` (`pid`, `barcode`, `product`, `category`, `description`, `servicetype`, `additionalfee`, `stock`, `purchaseprice`, `saleprice`, `image`) VALUES
-(44, 5, 'Lpg-001', '5 kg (Medium)', 'household', 'Pick-up', 0.00, 31, 700, 1000, '68dc89060c4c4.jpg'),
-(46, 11, 'Lpg-002', '11 Kg ', '', '', 0.00, 35, 0, 0, '68dc89ca3d243.jpg'),
-(49, 5, 'Lpg-003', '22 kg', 'household', 'Pick-up', 0.00, 30, 700, 1000, '68dc89060c4c4.jpg'),
-(58, 11, 'Lpg-004', '50 Kg ', '', '', 0.00, 50, 0, 0, '68dc89ca3d243.jpg');
+INSERT INTO `tbl_product` (`pid`, `barcode`, `product`, `category`, `description`, `servicetype`, `additionalfee`, `stock`, `purchaseprice`, `saleprice`, `image`, `supplier_category`) VALUES
+(44, 5, 'Lpg-001', '5 kg (Medium)', 'household', 'Pick-up', 0.00, 31, 700, 1000, '68dc89060c4c4.jpg', NULL),
+(46, 11, 'Lpg-002', '11 Kg ', '', '', 0.00, 35, 0, 0, '68dc89ca3d243.jpg', NULL),
+(49, 5, 'Lpg-003', '22 kg', 'household', 'Pick-up', 0.00, 30, 700, 1000, '68dc89060c4c4.jpg', NULL),
+(58, 11, 'Lpg-004', '50 Kg ', '', '', 0.00, 50, 0, 0, '68dc89ca3d243.jpg', NULL);
 
 -- --------------------------------------------------------
 

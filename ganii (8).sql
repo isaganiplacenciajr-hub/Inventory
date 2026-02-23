@@ -171,10 +171,7 @@ CREATE TABLE `tbl_invoice` (
   `total` double NOT NULL,
   `payment_type` tinytext NOT NULL,
   `due` double NOT NULL,
-  `paid` double NOT NULL,
-  `customer_name` VARCHAR(255),
-  `customer_contact` VARCHAR(255),
-  `customer_address` TEXT
+  `paid` double NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -379,19 +376,18 @@ CREATE TABLE `tbl_product` (
   `saleprice` float NOT NULL,
   `image` varchar(200) NOT NULL,
   `valvetype` varchar(100) NOT NULL DEFAULT 'Roskas (threaded)',
-  `addedstock` int(11) NOT NULL DEFAULT 0,
-  `supplier_category` varchar(200) DEFAULT NULL
+  `addedstock` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `tbl_product`
 --
 
-INSERT INTO `tbl_product` (`pid`, `barcode`, `product`, `category`, `description`, `servicetype`, `additionalfee`, `stock`, `brand`, `expirydate`, `purchaseprice`, `saleprice`, `image`, `valvetype`, `addedstock`, `supplier_category`) VALUES
-(87, 0, 'lpg-003 (50kg)', '50 kg (Extra Large)', 'household', 'Pick-up', 0.00, 100, 'Pryce Gas', '2026-01-02', 3800, 4200, '6906eab59ad61.jpg', 'Roskas (threaded)', 0, NULL),
-(89, 0, 'lpg-002 (22kg)', '22 Kg (Large)', 'houseold', 'Pick-up', 0.00, 100, 'Pryce Gas', '2026-11-02', 1700, 1850, '692c0a0649e53.jpg', 'Roskas (threaded)', 0, NULL),
-(90, 0, 'lpg-001 (11kg)', '11 Kg (Standard)', 'houseold', 'Pick-up', 0.00, 95, 'Pryce Gas', '2026-11-02', 900, 1000, '692c0b73a0eff.jpg', 'Roskas (threaded)', 0, NULL),
-(141, 0, 'lpg-000 (5kg)', '5 kg (Medium)', 'houseold', 'Pick-up', 0.00, 135, 'Pryce Gas', '2026-11-04', 400, 450, '692c0b73a0eff.jpg', 'Roskas (threaded)', 2, NULL);
+INSERT INTO `tbl_product` (`pid`, `barcode`, `product`, `category`, `description`, `servicetype`, `additionalfee`, `stock`, `brand`, `expirydate`, `purchaseprice`, `saleprice`, `image`, `valvetype`, `addedstock`) VALUES
+(87, 0, 'lpg-003 (50kg)', '50 kg (Extra Large)', 'household', 'Pick-up', 0.00, 100, 'Pryce Gas', '2026-01-02', 3800, 4200, '6906eab59ad61.jpg', 'Roskas (threaded)', 0),
+(89, 0, 'lpg-002 (22kg)', '22 Kg (Large)', 'houseold', 'Pick-up', 0.00, 100, 'Pryce Gas', '2026-11-02', 1700, 1850, '692c0a0649e53.jpg', 'Roskas (threaded)', 0),
+(90, 0, 'lpg-001 (11kg)', '11 Kg (Standard)', 'houseold', 'Pick-up', 0.00, 95, 'Pryce Gas', '2026-11-02', 900, 1000, '692c0b73a0eff.jpg', 'Roskas (threaded)', 0),
+(141, 0, 'lpg-000 (5kg)', '5 kg (Medium)', 'houseold', 'Pick-up', 0.00, 135, 'Pryce Gas', '2026-11-04', 400, 450, '692c0b73a0eff.jpg', 'Roskas (threaded)', 2);
 
 -- --------------------------------------------------------
 

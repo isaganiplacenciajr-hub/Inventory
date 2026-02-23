@@ -61,6 +61,7 @@ if($row = $select->fetch(PDO::FETCH_OBJ)){
     $saleprice = htmlspecialchars($row->saleprice);
     $profit = $saleprice - $purchaseprice;
     $image = htmlspecialchars($row->image);
+    $supplierCategory = !empty($row->supplier_category) ? htmlspecialchars($row->supplier_category) : 'N/A';
 
     // New fields
     $stock = isset($row->stock) ? intval($row->stock) : 0;
@@ -79,6 +80,7 @@ echo '
 
    <li class="list-group-item"><b>Product Code</b><span class="badge badge-warning float-right">'.$productCode.'</span></li>
   <li class="list-group-item"><b>Category</b><span class="badge badge-success float-right">'.$category.'</span></li>
+  <li class="list-group-item"><b>Supplier Category</b><span class="badge badge-info float-right">'.$supplierCategory.'</span></li>
   <li class="list-group-item"><b>Valve Type</b><span class="badge badge-primary float-right">'.$valvetype.'</span></li>
   <li class="list-group-item"><b>Purchase Price</b><span class="badge badge-secondary float-right">'.$purchaseprice.'</span></li>
   <li class="list-group-item"><b>Sale Price</b><span class="badge badge-dark float-right">'.$saleprice.'</span></li>

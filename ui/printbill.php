@@ -53,7 +53,30 @@ $pdf->Cell(50, 5, $formattedDate, 0, 1);
 
 $pdf->Ln(2);
 
-// ===== TABLE HEADER =====
+// ===== CUSTOMER INFORMATION =====
+$pdf->SetFont('Arial', 'B', 8);
+$pdf->Cell(0, 5, 'CUSTOMER INFORMATION', 0, 1, 'L');
+
+$pdf->SetFont('Arial', 'B', 8);
+$pdf->Cell(18, 5, 'Name:', 0, 0);
+$pdf->SetFont('Courier', '', 8);
+$pdf->Cell(50, 5, $row->customer_name ?? 'N/A', 0, 1);
+
+if (!empty($row->customer_contact)) {
+    $pdf->SetFont('Arial', 'B', 8);
+    $pdf->Cell(18, 5, 'Contact:', 0, 0);
+    $pdf->SetFont('Courier', '', 8);
+    $pdf->Cell(50, 5, $row->customer_contact, 0, 1);
+}
+
+if (!empty($row->customer_address)) {
+    $pdf->SetFont('Arial', 'B', 8);
+    $pdf->Cell(18, 5, 'Address:', 0, 0);
+    $pdf->SetFont('Courier', '', 8);
+    $pdf->MultiCell(50, 5, $row->customer_address, 0, 'L');
+}
+
+$pdf->Ln(2);
 $pdf->SetX(6);
 $pdf->SetFont('Courier', 'B', 8);
 $pdf->Cell(30, 6, 'PRODUCT', 1, 0, 'C');

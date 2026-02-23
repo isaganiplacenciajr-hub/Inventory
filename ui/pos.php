@@ -24,115 +24,6 @@ function fill_product($pdo)
     return $output;
 }
 
-/**
- * Save order
- */
-if (isset($_POST['btnsaveorder'])) {
-    try {
-        $pdo->beginTransaction();
-
-        $orderdate     = date("Y-m-d");
-        $subtotal      = floatval($_POST['txtsubtotal'] ?? 0);
-        $discount      = floatval($_POST['txtdiscount'] ?? 0);
-        $sgst          = floatval($_POST['txtsgst'] ?? 0);
-        $cgst          = floatval($_POST['txtcgst'] ?? 0);
-        $total         = floatval($_POST['txttotal'] ?? 0);
-        $payment_type  = $_POST['rb'] ?? 'cash';
-        $due           = floatval($_POST['txtdue'] ?? 0);
-        $paid          = floatval($_POST['txtpaid'] ?? 0);
-
-        // Arrays from form
-        $arr_pid       = $_POST['pid_arr'] ?? [];
-        $arr_name      = $_POST['product_arr'] ?? [];
-        $arr_stock     = $_POST['stock_c_arr'] ?? [];
-        $arr_qty       = $_POST['quantity_arr'] ?? [];
-        $arr_price     = $_POST['price_arr'] ?? [];
-        $arr_total     = $_POST['saleprice_arr'] ?? [];
-        $arr_service   = $_POST['service_c_arr'] ?? [];
-        $arr_addfee    = $_POST['addfee_c_arr'] ?? [];
-
-        // Insert into tbl_invoice (main)
-        $insertInvoice = $pdo->prepare("
-            INSERT INTO tbl_invoice 
-            (order_date, subtotal, discount, sgst, cgst, total, payment_type, due, paid)
-            VALUES 
-            (:order_date, :subtotal, :discount, :sgst, :cgst, :total, :payment_type, :due, :paid)
-        ");
-
-        $insertInvoice->execute([
-            ':order_date'   => $orderdate,
-            ':subtotal'     => $subtotal,
-            ':discount'     => $discount,
-            ':sgst'         => $sgst,
-            ':cgst'         => $cgst,
-            ':total'        => $total,
-            ':payment_type' => $payment_type,
-            ':due'          => $due,
-            ':paid'         => $paid,
-        ]);
-
-        $invoice_id = $pdo->lastInsertId();
-
-        if ($invoice_id) {
-            // Update product stock
-            $updateStock = $pdo->prepare("UPDATE tbl_product SET stock = :stock WHERE pid = :pid");
-
-            // Insert invoice details
-            $insertDetail = $pdo->prepare("
-                INSERT INTO tbl_invoice_details
-                (invoice_id, product_id, product_name, qty, rate, saleprice, order_date, servicetype, addfee)
-                VALUES 
-                (:invoice_id, :pid, :product_name, :qty, :rate, :saleprice, :order_date, :servicetype, :addfee)
-            ");
-
-            for ($i = 0; $i < count($arr_pid); $i++) {
-                $pid   = intval($arr_pid[$i]);
-                $name  = $arr_name[$i] ?? '';
-                $stock = isset($arr_stock[$i]) ? intval($arr_stock[$i]) : 0;
-                $qty   = isset($arr_qty[$i]) ? intval($arr_qty[$i]) : 0;
-                $rate  = isset($arr_price[$i]) ? floatval($arr_price[$i]) : 0;
-                $lineTotal = isset($arr_total[$i]) ? floatval($arr_total[$i]) : 0;
-                $service = $arr_service[$i] ?? 'Pick up';
-                $addfee = isset($arr_addfee[$i]) ? floatval($arr_addfee[$i]) : 0.00;
-
-                // Update stock
-                $remaining = $stock - $qty;
-                if ($remaining < 0) {
-                    $pdo->rollBack();
-                    header('Location: pos.php?error=insufficient_stock');
-                    exit;
-                }
-
-                $updateStock->execute([
-                    ':stock' => $remaining,
-                    ':pid'   => $pid,
-                ]);
-
-                // Insert details
-                $insertDetail->execute([
-                    ':invoice_id'   => $invoice_id,
-                    ':pid'          => $pid,
-                    ':product_name' => $name,
-                    ':qty'          => $qty,
-                    ':rate'         => $rate,
-                    ':saleprice'    => $lineTotal,
-                    ':order_date'   => $orderdate,
-                    ':servicetype'  => $service,
-                    ':addfee'       => $addfee,
-                ]);
-            }
-        }
-
-        $pdo->commit();
-        header('Location: orderlist.php');
-        exit;
-
-    } catch (Exception $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
-        echo "<pre>❌ ERROR: " . $e->getMessage() . "</pre>";
-        exit;
-    }
-}
 ob_end_flush();
 // Fetch tax/discount config
 $select = $pdo->prepare("SELECT * FROM tbl_taxdis WHERE taxdis_id = 1 LIMIT 1");
@@ -175,11 +66,23 @@ $row = $select->fetch(PDO::FETCH_OBJ);
             <div class="row">
               <div class="col-md-9">
                 <form action="" method="post" name="posform" id="posform">
-                  <select id="product_select" class="form-control" style="width: 100%;">
-                    <option value=""> Select Product</option>
-                    <?php echo fill_product($pdo); ?>
-                  </select>
-                  <br>
+                  <!-- Customer Information Button -->
+                  <div class="row mb-3">
+                    <div class="col-md-12">
+                      <button type="button" class="btn btn-info btn-lg btn-block" id="btnCustomerInfo" data-toggle="modal" data-target="#customerModal">
+                        <i class="fas fa-user"></i> Customer Information
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Product Selection Button -->
+                  <div class="row mb-3">
+                    <div class="col-md-12">
+                      <button type="button" class="btn btn-warning btn-lg btn-block" id="btnSelectProduct" data-toggle="modal" data-target="#productModal">
+                        <i class="fas fa-box"></i> Click to Select Category
+                      </button>
+                    </div>
+                  </div>
 
                   <div class="tableFixHead">
                     <table id="producttable" class="table table-bordered table-hover">
@@ -221,7 +124,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
 
                 <div class="input-group mb-2">
                   <div class="input-group-prepend"><span class="input-group-text">DISCOUNT(%)</span></div>
-                  <input type="text" class="form-control" name="txtdiscount" id="txtdiscount_p" value="<?php echo htmlspecialchars($row->discount ?? 0); ?>">
+                  <input type="text" class="form-control" name="txtdiscount" id="txtdiscount_p" value="0">
                   <div class="input-group-append"><span class="input-group-text">%</span></div>
                 </div>
 
@@ -246,6 +149,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
                   <label for="radioSuccess1">CASH</label>
                 </div>
 
+                
                 <hr>
 
                 <div class="input-group mb-2">
@@ -270,7 +174,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
 
                 <div class="card-footer">
                   <div class="text-center">
-                    <button type="submit" class="btn btn-success" name="btnsaveorder">Save Order</button>
+                    <button type="button" class="btn btn-success" id="btnSaveOrderAjax" name="btnsaveorder">Save Order</button>
                   </div>
                 </div>
               </div> <!-- /.col-md-4 -->
@@ -282,6 +186,86 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     </form>
   </div> <!-- /.content -->
 </div> <!-- /.content-wrapper -->
+
+<!-- Product Selection Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" role="dialog" aria-labelledby="productModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="productModalLabel">Select Product</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="product_select"><strong>Choose Product</strong></label>
+          <select id="product_select" class="form-control">
+            <option value="">-- Select a Product --</option>
+            <?php echo fill_product($pdo); ?>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Information Modal -->
+<div class="modal fade" id="customerModal" tabindex="-1" role="dialog" aria-labelledby="customerModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="customerModalLabel">Customer Information</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="txtcustomer_name"><strong>Customer Name <span class="text-danger">*</span></strong></label>
+          <input type="text" class="form-control" id="txtcustomer_name" name="txtcustomer_name" placeholder="Enter customer name" required>
+          <small class="form-text text-muted">Customer name is required</small>
+        </div>
+
+        <div class="form-group">
+          <label for="txtcustomer_contact"><strong>Contact Number</strong></label>
+          <input type="text" class="form-control" id="txtcustomer_contact" name="txtcustomer_contact" placeholder="Enter contact number">
+        </div>
+
+        <div class="form-group">
+          <label for="txtcustomer_address"><strong>Address</strong></label>
+          <textarea class="form-control" id="txtcustomer_address" name="txtcustomer_address" placeholder="Enter address" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="btnSaveCustomerInfo" data-dismiss="modal">Save Customer Info</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-labelledby="receiptModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document" style="max-width: 480px;">
+    <div class="modal-content">
+      <div class="modal-header" style="padding: 12px 15px;">
+        <h5 class="modal-title" id="receiptModalLabel">Order Receipt</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="receiptContent" style="max-height: 70vh; overflow-y: auto; padding: 0;">
+        <!-- Receipt content will be loaded here -->
+      </div>
+      <div class="modal-footer" style="padding: 12px 15px;">
+        <button type="button" class="btn btn-primary btn-sm" id="btnPrintReceipt"><i class="fas fa-print"></i> Print</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnNewOrder">New Order</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <?php require_once 'footer.php'; ?>
 
@@ -382,6 +366,50 @@ $row = $select->fetch(PDO::FETCH_OBJ);
 
   // AJAX fetch for barcode input (if you use txtbarcode_id)
   $(function () {
+    // Update customer info button when modal closes
+    $('#customerModal').on('hidden.bs.modal', function () {
+      updateCustomerInfoButton();
+    });
+
+    // Save customer info button
+    $('#btnSaveCustomerInfo').click(function () {
+      const customerName = $('#txtcustomer_name').val().trim();
+      if (!customerName) {
+        Swal.fire('Error', 'Please enter customer name', 'error');
+        return;
+      }
+      // Modal will close automatically with data-dismiss
+    });
+
+    // Function to update button text based on customer info
+    function updateCustomerInfoButton() {
+      const customerName = $('#txtcustomer_name').val().trim();
+      const btn = $('#btnCustomerInfo');
+      
+      if (customerName) {
+        btn.removeClass('btn-info').addClass('btn-success');
+        btn.html('<i class="fas fa-user"></i> ' + htmlEscapeCustomerName(customerName));
+      } else {
+        btn.removeClass('btn-success').addClass('btn-info');
+        btn.html('<i class="fas fa-user"></i> Customer Information');
+      }
+    }
+
+    // Helper function to escape HTML in customer name
+    function htmlEscapeCustomerName(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]).substring(0, 25) + (text.length > 25 ? '...' : '');
+    }
+
+    // Initialize button on page load
+    updateCustomerInfoButton();
+
     $('#txtbarcode_id').on('change', function () {
       const barcode = $(this).val();
       if (!barcode) return;
@@ -429,6 +457,8 @@ $row = $select->fetch(PDO::FETCH_OBJ);
             productarr.push(String(data.pid));
           }
           $('#product_select').val('').trigger('change');
+          // Close the product modal after selection
+          $('#productModal').modal('hide');
         }
       });
     });
@@ -493,6 +523,116 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     $("#txtpaid").on('input', function () {
       calculate(parseFloat($("#txtdiscount_p").val() || 0), parseFloat($(this).val() || 0));
     });
+
+    // AJAX Form Submission
+    $('#btnSaveOrderAjax').click(function() {
+      const $this = $(this);
+      const originalText = $this.text();
+      
+      // Validate customer name again
+      const customerName = $('#txtcustomer_name').val().trim();
+      if (!customerName) {
+        Swal.fire('Error', 'Please enter customer name', 'error');
+        return;
+      }
+
+      // Check if cart is empty
+      if ($('.details tr').length === 0) {
+        Swal.fire('Error', 'Please add items to cart', 'error');
+        return;
+      }
+
+      // Disable button and show loading state
+      $this.prop('disabled', true).text('Saving...');
+
+      const formData = new FormData($('#posform')[0]);
+      formData.append('btnsaveorder', '1');
+      
+      // Append customer information from modal inputs
+      formData.append('txtcustomer_name', $('#txtcustomer_name').val());
+      formData.append('txtcustomer_contact', $('#txtcustomer_contact').val());
+      formData.append('txtcustomer_address', $('#txtcustomer_address').val());
+
+      $.ajax({
+        url: 'saveorder_ajax.php',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(response) {
+          if (response.success && response.invoice_id) {
+            // Load receipt into modal
+            $('#receiptContent').load('get_receipt.php?id=' + response.invoice_id, function() {
+              // Show the modal
+              $('#receiptModal').modal('show');
+            });
+          } else {
+            Swal.fire('Error', response.message || 'Failed to save order', 'error');
+          }
+        },
+        error: function(xhr, status, error) {
+          Swal.fire('Error', 'Failed to save order: ' + error, 'error');
+        },
+        complete: function() {
+          $this.prop('disabled', false).text(originalText);
+        }
+      });
+    });
+
+    // Print Receipt
+    $('#btnPrintReceipt').click(function() {
+      const printWindow = window.open('', '', 'width=800,height=600');
+      const receiptContent = $('#receiptContent').html();
+      
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Receipt</title>
+          <style>
+            body { font-family: 'Courier New', monospace; margin: 10px; }
+            @media print {
+              body { margin: 0; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${receiptContent}
+        </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    });
+
+    // New Order - Reset form
+    $('#btnNewOrder').click(function() {
+      // Reset customer info
+      $('#txtcustomer_name').val('');
+      $('#txtcustomer_contact').val('');
+      $('#txtcustomer_address').val('');
+      
+      // Clear cart
+      $('.details').empty();
+      productarr = [];
+      
+      // Reset form
+      $('#posform')[0].reset();
+      
+      // Reset calculations
+      calculate(0, 0);
+      
+      // Close modal
+      $('#receiptModal').modal('hide');
+      
+      // Focus on customer name field
+      $('#txtcustomer_name').focus();
+    });
   });
 
   // Recalculate one row total and update hidden input
@@ -542,7 +682,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     $("#txtchange").val(change.toFixed(2));
 
     // Disable Save Order button if payment is insufficient
-    const btnSave = $("button[name='btnsaveorder']");
+    const btnSave = $("#btnSaveOrderAjax");
     if (paid < (total - 0.01)) { // Using 0.01 to handle minor float precision issues
       btnSave.prop('disabled', true);
       btnSave.text("Incomplete Payment");
