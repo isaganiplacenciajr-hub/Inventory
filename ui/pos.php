@@ -42,6 +42,11 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     top: 0;
     z-index: 1;
   }
+  /* hide product code column on admin POS too */
+  #producttable th.d-none,
+  #producttable td.pcode-col {
+    display: none;
+  }
   table { border-collapse: collapse; width: 100%; }
   th, td { padding: 8px 12px; }
   th { background: #eee; }
@@ -66,18 +71,14 @@ $row = $select->fetch(PDO::FETCH_OBJ);
             <div class="row">
               <div class="col-md-9">
                 <form action="" method="post" name="posform" id="posform">
-                  <!-- Customer Information Button -->
+                  <!-- Customer Information & Product Selection Buttons -->
                   <div class="row mb-3">
-                    <div class="col-md-12">
+                    <div class="col-md-6 pr-2">
                       <button type="button" class="btn btn-info btn-lg btn-block" id="btnCustomerInfo" data-toggle="modal" data-target="#customerModal">
                         <i class="fas fa-user"></i> Customer Information
                       </button>
                     </div>
-                  </div>
-
-                  <!-- Product Selection Button -->
-                  <div class="row mb-3">
-                    <div class="col-md-12">
+                    <div class="col-md-6 pl-2">
                       <button type="button" class="btn btn-warning btn-lg btn-block" id="btnSelectProduct" data-toggle="modal" data-target="#productModal">
                         <i class="fas fa-box"></i> Click to Select Category
                       </button>
@@ -88,10 +89,12 @@ $row = $select->fetch(PDO::FETCH_OBJ);
                     <table id="producttable" class="table table-bordered table-hover">
                       <thead>
                         <tr>
-                          <th>Product Code</th>
+                          <!-- product code hidden; data remains in first cell -->
+                          <th class="d-none">Product Code</th>
                           <th>Brand</th>
                           <th>Category</th>
                           <th>Valve Type</th>
+                          <th>Empty Tank?</th>
                           <th>Expiry</th>
                           <th>Price</th>
                           <th>QTY</th>
@@ -130,11 +133,27 @@ $row = $select->fetch(PDO::FETCH_OBJ);
 
                 <div class="input-group mb-2">
                   <div class="input-group-prepend"><span class="input-group-text">DISCOUNT(₱)</span></div>
-                  <input type="text" class="form-control" id="txtdiscount_n" readonly>
+                  <input type="text" class="form-control" id="txtdiscount_n">
                   <div class="input-group-append"><span class="input-group-text">₱</span></div>
                 </div>
 
+                <!-- VAT configuration -->
+                <div class="input-group mb-2">
+                  <div class="input-group-prepend"><span class="input-group-text">VAT(%)</span></div>
+                  <input type="text" class="form-control" id="txtvat_p" name="txtvat_p" value="12">
+                  <div class="input-group-append"><span class="input-group-text">%</span></div>
+                </div>
+                <div class="input-group mb-2">
+                  <div class="input-group-prepend"><span class="input-group-text">VAT AMT(₱)</span></div>
+                  <input type="text" class="form-control" id="txtvat_n" name="txtvat_n" readonly>
+                  <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                </div>
 
+                <div class="input-group mb-2">
+                  <div class="input-group-prepend"><span class="input-group-text">DEPOSIT(₱)</span></div>
+                  <input type="text" class="form-control" id="txtdeposit" name="txtdeposit" readonly>
+                  <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                </div>
 
                 <div class="input-group mb-2">
                   <div class="input-group-prepend"><span class="input-group-text">TOTAL(₱)</span></div>
@@ -149,25 +168,31 @@ $row = $select->fetch(PDO::FETCH_OBJ);
                   <label for="radioSuccess1">CASH</label>
                 </div>
 
-                
+                <div class="icheck-success d-inline" style="margin-left: 20px;">
+                  <input type="radio" name="rb" value="cod" id="radioSuccess2">
+                  <label for="radioSuccess2">COD (Cash on Delivery)</label>
+                </div>
+
                 <hr>
 
-                <div class="input-group mb-2">
-                  <div class="input-group-prepend"><span class="input-group-text">DUE(₱)</span></div>
-                  <input type="text" class="form-control" name="txtdue" id="txtdue" readonly>
-                  <div class="input-group-append"><span class="input-group-text">₱</span></div>
-                </div>
+                <div id="paymentFieldsContainer">
+                  <div class="input-group mb-2">
+                    <div class="input-group-prepend"><span class="input-group-text">DUE(₱)</span></div>
+                    <input type="text" class="form-control" name="txtdue" id="txtdue" readonly>
+                    <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                  </div>
 
-                <div class="input-group mb-2">
-                  <div class="input-group-prepend"><span class="input-group-text">PAID(₱)</span></div>
-                  <input type="text" class="form-control" name="txtpaid" id="txtpaid">
-                  <div class="input-group-append"><span class="input-group-text">₱</span></div>
-                </div>
+                  <div class="input-group mb-2">
+                    <div class="input-group-prepend"><span class="input-group-text">PAID(₱)</span></div>
+                    <input type="text" class="form-control" name="txtpaid" id="txtpaid">
+                    <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                  </div>
 
-                <div class="input-group mb-2">
-                  <div class="input-group-prepend"><span class="input-group-text">CHANGE(₱)</span></div>
-                  <input type="text" class="form-control" name="txtchange" id="txtchange" readonly>
-                  <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                  <div class="input-group mb-2">
+                    <div class="input-group-prepend"><span class="input-group-text">CHANGE(₱)</span></div>
+                    <input type="text" class="form-control" name="txtchange" id="txtchange" readonly>
+                    <div class="input-group-append"><span class="input-group-text">₱</span></div>
+                  </div>
                 </div>
 
                 <hr>
@@ -270,10 +295,64 @@ $row = $select->fetch(PDO::FETCH_OBJ);
 <?php require_once 'footer.php'; ?>
 
 <script>
+      let discountPesoManual = false;
+      // Auto-calculate Discount(%) when Discount(₱) changes
+      $('#txtdiscount_n').on('input', function () {
+        discountPesoManual = true;
+        const discountPeso = parseFloat($(this).val()) || 0;
+        const subtotal = parseFloat($('#txtsubtotal_id').val()) || 0;
+        let discountPercent = 0;
+        if (subtotal > 0) {
+          discountPercent = (discountPeso / subtotal) * 100;
+        }
+        $('#txtdiscount_p').val(discountPercent.toFixed(2));
+        calculate(discountPercent, parseFloat($('#txtpaid').val()) || 0);
+        discountPesoManual = false;
+      });
+    // Auto-calculate Discount(%) when Discount(₱) changes
+    $('#txtdiscount_n').on('input', function () {
+      const discountPeso = parseFloat($(this).val()) || 0;
+      const subtotal = parseFloat($('#txtsubtotal_id').val()) || 0;
+      let discountPercent = 0;
+      if (subtotal > 0) {
+        discountPercent = (discountPeso / subtotal) * 100;
+      }
+      $('#txtdiscount_p').val(discountPercent.toFixed(2));
+      calculate(discountPercent, parseFloat($('#txtpaid').val()) || 0);
+    });
   // Initialize Select2 Elements (if any others exist, but product_select is now standard)
   // $('.select2').select2(); // Disabled as per request to use simple dropdowns
 
   let productarr = [];
+
+  /**
+   * Toggle payment fields visibility based on payment method
+   */
+  function togglePaymentFields() {
+    const paymentMethod = $('input[name="rb"]:checked').val();
+    const paymentFieldsContainer = $('#paymentFieldsContainer');
+    
+    if (paymentMethod === 'cod') {
+      // Hide payment fields for COD
+      paymentFieldsContainer.hide();
+      // Clear payment values
+      $('#txtdue').val('0.00');
+      $('#txtpaid').val('');
+      $('#txtchange').val('0.00');
+      // Enable Save Order for COD orders
+      $('#btnSaveOrderAjax').prop('disabled', false).text("Save Order").removeClass('btn-danger').addClass('btn-success');
+    } else {
+      // Show payment fields for Cash
+      paymentFieldsContainer.show();
+      // Recalculate to show proper payment status
+      calculate(parseFloat($("#txtdiscount_p").val() || 0), parseFloat($("#txtpaid").val() || 0));
+    }
+  }
+
+  // Set up payment method change listener
+  $('input[name="rb"]').on('change', function() {
+    togglePaymentFields();
+  });
 
   /**
    * addRow: inserts a new product row in the table
@@ -294,9 +373,18 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     const totalFee = feePerQty * qtyDefault;
     const lineTotal = (unitPrice * qtyDefault) + totalFee;
 
+    // determine whether this product qualifies as 11kg LPG
+    const is11kg = /11\s*k?g/i.test(category);
+    const emptyDropdown = is11kg ? `
+          <select class="form-control form-control-sm emptytank" name="emptytank_arr[]">
+            <option value="No" selected>No</option>
+            <option value="Yes">Yes</option>
+          </select>
+        ` : '';
+
     const tr = `
       <tr data-pid="${pid}">
-        <td style="text-align:left; vertical-align:middle; font-size:17px;">
+        <td class="pcode-col" style="text-align:left; vertical-align:middle; font-size:17px;">
           <span class="badge badge-dark">${product}</span>
           <input type="hidden" name="pid_arr[]" value="${pid}">
           <input type="hidden" name="product_arr[]" value="${product}">
@@ -315,6 +403,11 @@ $row = $select->fetch(PDO::FETCH_OBJ);
         <td style="text-align:left; vertical-align:middle; font-size:17px;">
           <span class="badge badge-secondary valvetype">${valvetype}</span>
           <input type="hidden" name="valvetype_c_arr[]" value="${valvetype}">
+        </td>
+
+        <td style="text-align:left; vertical-align:middle; font-size:17px;">
+          ${emptyDropdown}
+          <input type="hidden" name="is11kg_arr[]" value="${is11kg?1:0}">
         </td>
 
         <td style="text-align:left; vertical-align:middle; font-size:17px;">
@@ -364,8 +457,11 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     calculate(0, 0);
   }
 
-  // AJAX fetch for barcode input (if you use txtbarcode_id)
+  // Product lookup by product select dropdown
   $(function () {
+    // Initialize payment fields visibility on page load
+    togglePaymentFields();
+
     // Update customer info button when modal closes
     $('#customerModal').on('hidden.bs.modal', function () {
       updateCustomerInfoButton();
@@ -410,31 +506,7 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     // Initialize button on page load
     updateCustomerInfoButton();
 
-    $('#txtbarcode_id').on('change', function () {
-      const barcode = $(this).val();
-      if (!barcode) return;
-      $.ajax({
-        url: 'getproduct.php',
-        method: 'GET',
-        dataType: 'json',
-        data: { id: barcode },
-        success: function (data) {
-          if (!data || !data.pid) return;
-          if ($.inArray(String(data.pid), productarr) !== -1) {
-            const qtyEl = $('#qty_id' + data.pid);
-            qtyEl.val((parseInt(qtyEl.val() || 0, 10) + 1)).trigger('change');
-          } else {
-            // Use data from DB
-            const service = data.servicetype || 'Pick up';
-            const addFee = parseFloat(data.additionalfee) || 0; 
-            
-            addRow(data.pid, data.product, data.brand, data.category, data.valvetype, data.expirydate, data.saleprice, data.stock, service, addFee);
-            productarr.push(String(data.pid));
-          }
-          $('#txtbarcode_id').val('');
-        }
-      });
-    });
+    // Product selection flow (search by name or ID)
 
     // Select2 product select flow
     $('#product_select').on('change', function () {
@@ -506,7 +578,10 @@ $row = $select->fetch(PDO::FETCH_OBJ);
       updateRowTotal(tr[0]);
       calculate(0, 0);
     });
-
+    // recalc when empty tank dropdown toggled
+    $("#itemtable").on("change", ".emptytank", function () {
+      calculate(0, 0);
+    });
     // Remove row
     $(document).on('click', '.btnremove', function () {
       const removed = $(this).attr("data-id");
@@ -515,13 +590,18 @@ $row = $select->fetch(PDO::FETCH_OBJ);
       calculate(0, 0);
     });
 
-    // Discount / Paid events
+    // Discount / Paid / VAT events
     $("#txtdiscount_p").on('input', function () {
       calculate(parseFloat($(this).val() || 0), 0);
     });
 
     $("#txtpaid").on('input', function () {
       calculate(parseFloat($("#txtdiscount_p").val() || 0), parseFloat($(this).val() || 0));
+    });
+
+    $("#txtvat_p").on('input', function () {
+      // whenever VAT percent changes, recalc totals (discount and paid already factored)
+      calculate(parseFloat($("#txtdiscount_p").val() || 0), parseFloat($("#txtpaid").val() || 0));
     });
 
     // AJAX Form Submission
@@ -646,29 +726,58 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     row.querySelector('.saleprice').value = lineTotal.toFixed(2);
   }
 
-  // Recompute subtotal, taxes, discount, total, due
+  // Recompute subtotal, taxes, discount, VAT, total, due
   function calculate(discountPercent, paidAmt) {
     let subtotal = 0;
     let serviceFee = 0;
+    let depositTotal = 0;
 
     $(".details tr").each(function () {
       const rowPrice = parseFloat($(this).find('.price').text() || 0);
       const rowQty = parseFloat($(this).find('.qty').val() || 0);
       const rowFee = parseFloat($(this).find('.addfee').val() || 0);
+      const is11kg = $(this).find('input[name="is11kg_arr[]"]').val() === '1';
+      const emptyVal = $(this).find('.emptytank').val() || 'No';
 
       subtotal += (rowPrice * rowQty);
       serviceFee += rowFee;
+
+      // deposit only applies on 11kg LPG items
+      if (is11kg) {
+        if (emptyVal === 'No') {
+          depositTotal += 1200 * rowQty;
+        }
+      }
     });
 
     $("#txtsubtotal_id").val(subtotal.toFixed(2));
     $("#txtservicefee").val(serviceFee.toFixed(2));
+    $("#txtdeposit").val(depositTotal.toFixed(2));
 
+    // compute discount first
     const discountPct = parseFloat($("#txtdiscount_p").val() || 0);
-    const discountN = (discountPct / 100) * subtotal;
+    let discountN = (discountPct / 100) * subtotal;
+    // Only update Discount(₱) if not manually editing
+    if (!discountPesoManual && document.activeElement.id !== 'txtdiscount_n') {
+      $("#txtdiscount_n").val(discountN.toFixed(2));
+    } else {
+      // If user cleared the field, treat as zero
+      const manualVal = $("#txtdiscount_n").val();
+      discountN = manualVal === "" ? 0 : parseFloat(manualVal) || 0;
+    }
 
-    $("#txtdiscount_n").val(discountN.toFixed(2));
+    // compute VAT amount based on subtotal after discount (service fee excluded)
+    // VAT is shown for reference but not added to the payable total
+    const vatPct = parseFloat($("#txtvat_p").val() || 0);
+    let vatN = 0;
+    const baseForVat = subtotal - discountN; // discount reduces taxable base
+    if (vatPct > 0) {
+      // extraction from inclusive price
+      vatN = baseForVat - (baseForVat / (1 + vatPct / 100));
+    }
+    $("#txtvat_n").val(vatN.toFixed(2));
 
-    const total = subtotal + serviceFee - discountN;
+    const total = subtotal + serviceFee + depositTotal - discountN;
     const paid = parseFloat(paidAmt || 0);
     const due = total; // Due is now fixed at the total amount
     let change = paid - total;
@@ -681,16 +790,26 @@ $row = $select->fetch(PDO::FETCH_OBJ);
     $("#txtdue").val(due.toFixed(2));
     $("#txtchange").val(change.toFixed(2));
 
-    // Disable Save Order button if payment is insufficient
+    // Disable Save Order button if payment is insufficient (only for CASH)
     const btnSave = $("#btnSaveOrderAjax");
-    if (paid < (total - 0.01)) { // Using 0.01 to handle minor float precision issues
-      btnSave.prop('disabled', true);
-      btnSave.text("Incomplete Payment");
-      btnSave.removeClass('btn-success').addClass('btn-danger');
-    } else {
+    const paymentMethod = $('input[name="rb"]:checked').val();
+    
+    if (paymentMethod === 'cod') {
+      // COD orders can always be saved
       btnSave.prop('disabled', false);
       btnSave.text("Save Order");
       btnSave.removeClass('btn-danger').addClass('btn-success');
+    } else {
+      // Cash orders require full payment
+      if (paid < (total - 0.01)) { // Using 0.01 to handle minor float precision issues
+        btnSave.prop('disabled', true);
+        btnSave.text("Incomplete Payment");
+        btnSave.removeClass('btn-success').addClass('btn-danger');
+      } else {
+        btnSave.prop('disabled', false);
+        btnSave.text("Save Order");
+        btnSave.removeClass('btn-danger').addClass('btn-success');
+      }
     }
   }
 </script>

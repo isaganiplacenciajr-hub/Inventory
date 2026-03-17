@@ -1,7 +1,13 @@
 <?php
 require_once 'connectdb.php';
+require_once 'utils.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 $invoice_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+// we no longer rely on user_view parameter; always attempt to show creator info
+// $user_view = isset($_GET['user_view']) ? true : false;
 
 if (!$invoice_id) {
     echo '<p class="text-danger">Invalid invoice ID</p>';
@@ -18,12 +24,64 @@ if (!$row) {
     exit;
 }
 
+// Determine branch display values using stored order branch; fallback to active branch config
+$invoiceBranch = trim($row->branch ?? '');
+$branchDisplay = '';
+$branchAddress = '';
+$branchContact = '';
+
+include_once __DIR__ . '/../config/branch.php';
+
+if (!empty($invoiceBranch) && isset($branches[$invoiceBranch])) {
+    $branchDisplay = $branches[$invoiceBranch]['display'];
+    $branchAddress = $branches[$invoiceBranch]['address'];
+    $branchContact = $branches[$invoiceBranch]['contact'] ?? '';
+} elseif (!empty($invoiceBranch)) {
+    $branchDisplay = $invoiceBranch;
+    $branchAddress = $activeBranchData['address'] ?? '';
+    $branchContact = $activeBranchData['contact'] ?? '';
+} else {
+    $branchDisplay = $activeBranchData['display'] ?? 'Unknown Branch';
+    $branchAddress = $activeBranchData['address'] ?? '';
+    $branchContact = $activeBranchData['contact'] ?? '';
+}
+
 // Fetch invoice details
 $details = $pdo->prepare("SELECT * FROM tbl_invoice_details WHERE invoice_id = ?");
 $details->execute([$invoice_id]);
 $products = $details->fetchAll(PDO::FETCH_OBJ);
 
 $formattedDate = !empty($row->order_date) ? date("F j, Y", strtotime($row->order_date)) : '';
+$formattedTime = !empty($row->order_date) ? date("h:i A", strtotime($row->order_date)) : '';
+
+// determine which operator info to show
+// prefer recorded creator values if present (covers new orders)
+$showRole = $_SESSION['role'] ?? 'N/A';
+$showName = $_SESSION['username'] ?? 'N/A';
+if (!empty($row->created_by_role)) {
+    $showRole = $row->created_by_role;
+}
+if (!empty($row->created_by_name)) {
+    $showName = $row->created_by_name;
+}
+
+// fallback: if metadata is missing and we have a creator ID, look up the user table
+if ((empty($row->created_by_name) || empty($row->created_by_role)) && !empty($row->created_by)) {
+    try {
+        $u = $pdo->prepare("SELECT username, role FROM tbl_user WHERE userid = ? LIMIT 1");
+        $u->execute([$row->created_by]);
+        if ($urow = $u->fetch(PDO::FETCH_ASSOC)) {
+            if (empty($row->created_by_name)) {
+                $showName = $urow['username'];
+            }
+            if (empty($row->created_by_role)) {
+                $showRole = $urow['role'];
+            }
+        }
+    } catch (Exception $e) {
+        // ignore lookup failures
+    }
+}
 ?>
 
 <div class="receipt-container" style="font-family: 'Courier New', monospace; font-size: 11px; padding: 15px; line-height: 1.5; margin: 0 auto; text-align: center;">
@@ -31,8 +89,24 @@ $formattedDate = !empty($row->order_date) ? date("F j, Y", strtotime($row->order
     <!-- HEADER -->
     <div style="text-align: center; margin-bottom: 10px;">
         <h4 style="margin: 3px 0; font-size: 13px;">SPM LPG Trading</h4>
-        <p style="margin: 2px 0; font-size: 10px;">Matain, Subic, Zambales Branch</p>
-        <p style="margin: 2px 0; font-size: 10px;">Contact: 0981-243-6970</p>
+        <p style="margin: 2px 0; font-size: 10px; font-weight:bold;">
+          <?php echo htmlspecialchars($branchDisplay); ?>
+        </p>
+        <p style="margin: 2px 0; font-size: 10px;">
+          <?php echo htmlspecialchars($branchAddress); ?>
+        </p>
+        <p style="margin: 2px 0; font-size: 10px;">Contact: <?php echo htmlspecialchars($branchContact); ?></p>
+        <?php 
+            $displayVat = '';
+            if (!empty($row->vat_number)) {
+                $displayVat = $row->vat_number;
+            } elseif (defined('COMPANY_VAT_NUMBER')) {
+                $displayVat = COMPANY_VAT_NUMBER;
+            }
+        ?>
+        <?php if (!empty($displayVat)): ?>
+        <p style="margin: 2px 0; font-size: 10px;">VAT No.: <?php echo htmlspecialchars($displayVat); ?></p>
+        <?php endif; ?>
         <hr style="margin: 6px 0; border: 0; border-top: 1px solid #000;">
     </div>
 
@@ -50,6 +124,10 @@ $formattedDate = !empty($row->order_date) ? date("F j, Y", strtotime($row->order
         <tr>
             <td style="padding: 2px 0; text-align: right;"><strong>Date:</strong></td>
             <td style="padding: 2px 0; text-align: left;"><?php echo htmlspecialchars($formattedDate); ?></td>
+        </tr>
+        <tr>
+            <td style="padding: 2px 0; text-align: right;"><strong>Time:</strong></td>
+            <td style="padding: 2px 0; text-align: left;"><?php echo htmlspecialchars($formattedTime); ?></td>
         </tr>
     </table>
 
@@ -126,46 +204,76 @@ $formattedDate = !empty($row->order_date) ? date("F j, Y", strtotime($row->order
 
     <!-- SUMMARY -->
     <table style="width: 100%; margin-bottom: 8px; font-size: 10px;">
-        <tr>
-            <td style="width: 60%; text-align: right; padding: 2px 0;"><strong>Item Subtotal:</strong></td>
-            <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format($row->subtotal, 2); ?></td>
-        </tr>
         <?php
+            // Start with item subtotal (VAT-inclusive prices)
+            $itemSubtotal = floatval($row->subtotal);
+
+            // Calculate total service fee from line items
             $totalAddFee = 0;
             foreach ($products as $p) {
                 $totalAddFee += floatval($p->addfee ?? 0);
             }
-            if ($totalAddFee > 0):
+
+            // Discount amount based on subtotal
+            $discountAmt = 0;
+            $discountPct = 0;
+            if (!empty($row->discount)) {
+                $discountPct = floatval($row->discount);
+                $discountAmt = ($discountPct/100) * $itemSubtotal;
+            }
+
+            // VAT rate (default to 12 if not set or 0)
+            $vatPct = floatval($row->vat_percent ?? 0);
+            if ($vatPct <= 0) {
+                $vatPct = DEFAULT_VAT_RATE;
+            }
+
+            // Deposit amount (added after VAT; not subject to tax)
+            $depositAmt = floatval($row->deposit ?? 0);
+
+            // Base for VAT extraction is subtotal minus discount
+            $amountBeforeVat = $itemSubtotal - $discountAmt;
+            // Extract VAT amount using inclusive formula
+            $vatAmt = 0;
+            if ($vatPct > 0) {
+                $vatAmt = $amountBeforeVat - ($amountBeforeVat / (1 + $vatPct/100));
+            }
+
+            // Total payable mirrors user POS: subtotal + service fee - discount + deposit
+            $totalInclusive = $itemSubtotal + $totalAddFee + $depositAmt - $discountAmt;
         ?>
+        <tr>
+            <td style="width: 60%; text-align: right; padding: 2px 0;"><strong>Item Subtotal:</strong></td>
+            <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format($itemSubtotal, 2); ?></td>
+        </tr>
         <tr>
             <td style="text-align: right; padding: 2px 0;"><strong>Service Fee:</strong></td>
             <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format($totalAddFee, 2); ?></td>
         </tr>
-        <?php endif; ?>
-
-        <?php if ($row->discount > 0): ?>
         <tr>
-            <td style="text-align: right; padding: 2px 0;"><strong>Disc (%):</strong></td>
-            <td style="text-align: right; padding: 2px 0;"><?php echo htmlspecialchars($row->discount); ?>%</td>
+            <td style="text-align: right; padding: 2px 0;"><strong>Discount (<?php echo number_format($discountPct,2); ?>%):</strong></td>
+            <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format($discountAmt, 2); ?></td>
         </tr>
         <tr>
-            <td style="text-align: right; padding: 2px 0;"><strong>Disc (₱):</strong></td>
-            <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format(($row->discount / 100) * $row->subtotal, 2); ?></td>
+            <td style="text-align: right; padding: 2px 0;"><strong>VAT (<?php echo htmlspecialchars($vatPct); ?>%):</strong></td>
+            <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format($vatAmt, 2); ?></td>
+        </tr>
+        <?php if ($depositAmt > 0): ?>
+        <tr>
+            <td style="text-align: right; padding: 2px 0;"><strong>Tank Deposit:</strong></td>
+            <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format($depositAmt, 2); ?></td>
         </tr>
         <?php endif; ?>
-
         <tr style="border-top: 1px solid #000; border-bottom: 1px solid #000;">
             <td style="text-align: right; padding: 4px 0;"><strong>TOTAL:</strong></td>
-            <td style="text-align: right; padding: 4px 0;"><strong>₱<?php echo number_format($row->total, 2); ?></strong></td>
+            <td style="text-align: right; padding: 4px 0;"><strong>₱<?php echo number_format($totalInclusive, 2); ?></strong></td>
         </tr>
-
         <tr>
             <td style="text-align: right; padding: 2px 0;"><strong>Paid:</strong></td>
             <td style="text-align: right; padding: 2px 0;">₱<?php echo number_format($row->paid, 2); ?></td>
         </tr>
-
         <?php
-            $change = $row->paid - $row->total;
+            $change = $row->paid - $totalInclusive;
             if ($change > 0):
         ?>
         <tr>
@@ -177,18 +285,52 @@ $formattedDate = !empty($row->order_date) ? date("F j, Y", strtotime($row->order
 
     <hr style="margin: 5px 0; border: 0; border-top: 1px solid #000;">
 
-    <!-- PAYMENT TYPE -->
+    <!-- PAYMENT TYPE & STATUS -->
     <div style="text-align: center; margin-bottom: 8px; font-size: 10px;">
         <strong>Payment: </strong>
         <?php
             if ($row->payment_type == "cash") {
                 echo '<span style="background: #fff3cd; padding: 2px 6px; border-radius: 2px; font-size: 9px;">Cash</span>';
+            } elseif ($row->payment_type == "cod") {
+                echo '<span style="background: #cfe2ff; padding: 2px 6px; border-radius: 2px; font-size: 9px;">Cash on Delivery (COD)</span>';
             } elseif ($row->payment_type == "card") {
                 echo '<span style="background: #d4edda; padding: 2px 6px; border-radius: 2px; font-size: 9px;">Card</span>';
             } else {
                 echo htmlspecialchars($row->payment_type);
             }
         ?>
+    </div>
+
+    <?php if ($row->payment_type == "cod" || !empty($row->status)): ?>
+    <div style="text-align: center; margin-bottom: 8px; font-size: 10px;">
+        <strong>Status: </strong>
+        <?php
+            $status = $row->status ?? 'Complete';
+            if ($status === 'Pending') {
+                echo '<span style="background: #fff3cd; padding: 2px 6px; border-radius: 2px; font-size: 9px;">Pending</span>';
+            } elseif ($status === 'Complete') {
+                echo '<span style="background: #d4edda; padding: 2px 6px; border-radius: 2px; font-size: 9px;">Complete</span>';
+            } else {
+                echo htmlspecialchars($status);
+            }
+        ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- COMPOSED BY SECTION -->
+    <hr style="margin: 5px 0; border: 0; border-top: 1px solid #000;">
+    <div style="margin-bottom: 8px; font-size: 10px; text-align: left;">
+        <strong style="display: block; text-align: center; margin-bottom: 3px;">COMPOSED BY</strong>
+        <table style="width: 100%; margin-top: 2px;">
+            <tr>
+                <td style="width: 40%; padding: 2px 0; text-align: right;"><strong>Role:</strong></td>
+                <td style="padding: 2px 0; text-align: left;"><?php echo htmlspecialchars($showRole); ?></td>
+            </tr>
+            <tr>
+                <td style="padding: 2px 0; text-align: right;"><strong>Name:</strong></td>
+                <td style="padding: 2px 0; text-align: left;"><?php echo htmlspecialchars($showName); ?></td>
+            </tr>
+        </table>
     </div>
 
     <!-- FOOTER -->

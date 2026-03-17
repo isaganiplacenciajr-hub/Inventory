@@ -17,10 +17,7 @@ if (isset($_POST['btn_login'])) {
         $select = $pdo->prepare("SELECT * FROM tbl_user WHERE username=:user AND userpassword=:password");
     }
 
-    $select->bindParam(':user', $userInput);
-    $select->bindParam(':password', $password);
-    $select->execute();
-
+    $select->execute([':user' => $userInput, ':password' => $password]);
     $row = $select->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
@@ -31,6 +28,13 @@ if (isset($_POST['btn_login'])) {
         $_SESSION['useremail'] = $row['useremail'];
         $_SESSION['role'] = $row['role'];
 
+        // Log successful login
+        if (function_exists('logActivity')) {
+            $description = 'User logged in successfully as ' . ucfirst($row['role']);
+            $extra = ['ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown', 'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 200)];
+            logActivity($row['useremail'], 'Login', 'Authentication', $description, 'INFO', $extra);
+        }
+
         if ($row['role'] == "Admin") {
             header('refresh:1; ui/dashboard.php');
         } else {
@@ -39,6 +43,13 @@ if (isset($_POST['btn_login'])) {
     } else {
         $_SESSION['status'] = "Invalid email/username or password";
         $_SESSION['status_code'] = "error";
+
+        // Log failed login attempt
+        if (function_exists('logActivity')) {
+            $description = 'Failed login attempt with input: ' . htmlspecialchars($userInput);
+            $extra = ['ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown', 'attempted_user' => $userInput];
+            logActivity('Unknown', 'Login Failed', 'Authentication', $description, 'WARNING', $extra);
+        }
     }
 }
 ?>
@@ -59,7 +70,7 @@ if (isset($_POST['btn_login'])) {
 <style>
 /* BACKGROUND */
 body.login-page {
-    background: url("dist/img/isagani.jpg") no-repeat center center fixed;
+    background: url("dist/img/shop.jpg") no-repeat center center fixed;
     background-size: cover;
 }
 
@@ -123,7 +134,15 @@ body.login-page::before {
       <a href="#" class="h1 d-block mb-0">
         <b>SPM LPG</b> INVENTORY
       </a>
-      <span class="branch-text">Matain Branch</span>
+      <?php 
+        include_once __DIR__ . '/config/branch.php';
+      ?>
+      <span class="branch-text">
+        <?php echo htmlspecialchars($activeBranchData['display']); ?>
+      </span>
+      <div style="color:#fff; font-size:13px; margin-top:2px;">
+        <?php echo htmlspecialchars($activeBranchData['address']); ?>
+      </div>
     </div>
 
     <div class="card-body">
@@ -156,6 +175,10 @@ body.login-page::before {
           </div>
         </div>
       </form>
+
+      <div class="mt-3 text-center">
+        <a href="forgot_password.php" class="text-white">Forgot Password?</a>
+      </div>
     </div>
   </div>
 </div>

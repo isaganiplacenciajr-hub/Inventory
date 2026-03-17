@@ -8,118 +8,249 @@ include_once '../utils.php';
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
     try {
-        $id = isset($_POST['txtID']) && !empty($_POST['txtID']) ? $_POST['txtID'] : null;
-        
-        // Fetch existing data if updating
+
+        $id = $_POST['txtID'] ?? null;
+
+        // =========================
+        // FETCH OLD DATA IF EDITING
+        // =========================
         $old_data = null;
         if (!empty($id)) {
             $select = $pdo->prepare("SELECT * FROM tbl_product WHERE pid = :id");
-            $select->bindParam(':id', $id);
-            $select->execute();
+            $select->execute([':id' => $id]);
             $old_data = $select->fetch(PDO::FETCH_ASSOC);
+
+            if (!$old_data) {
+                echo json_encode(['success' => false, 'message' => 'Product not found']);
+                exit;
+            }
         }
 
-        $product = !empty($_POST['txtProductcode']) ? $_POST['txtProductcode'] : ($old_data ? $old_data['product'] : '');
-        $category = !empty($_POST['txtBarcode']) ? $_POST['txtBarcode'] : ($old_data ? $old_data['category'] : '');
-        $valvetype = !empty($_POST['txtvalvetype']) ? $_POST['txtvalvetype'] : ($old_data ? $old_data['valvetype'] : '');
-        $purchaseprice = isset($_POST['txtpurchaseprice']) && $_POST['txtpurchaseprice'] !== '' ? $_POST['txtpurchaseprice'] : ($old_data ? $old_data['purchaseprice'] : 0);
-        $saleprice = isset($_POST['txtsaleprice2']) && $_POST['txtsaleprice2'] !== '' ? $_POST['txtsaleprice2'] : ($old_data ? $old_data['saleprice'] : 0);
-        $quantity_to_add = isset($_POST['txtStockQty']) && $_POST['txtStockQty'] !== '' ? (int)$_POST['txtStockQty'] : 0;
-        $brand = !empty($_POST['txtBrand']) ? $_POST['txtBrand'] : ($old_data ? $old_data['brand'] : '');
-        $expirydate = !empty($_POST['txtExpirydate']) ? $_POST['txtExpirydate'] : ($old_data ? $old_data['expirydate'] : null);
-        $supplier_category = !empty($_POST['txtSupplierCategory']) ? $_POST['txtSupplierCategory'] : ($old_data ? $old_data['supplier_category'] : null);
+        // =========================
+        // GET FORM DATA
+        // =========================
+        $product = $_POST['txtProductcode'] ?? '';
+        $category = $_POST['txtCategory'] ?? '';
+        $valvetype = $_POST['txtvalvetype'] ?? '';
+        $purchaseprice = $_POST['txtpurchaseprice'] ?? 0;
+        $saleprice = $_POST['txtsaleprice2'] ?? 0;
+        $quantity_to_add = isset($_POST['txtStockQty']) ? (int)$_POST['txtStockQty'] : 0;
+        $brand = $_POST['txtBrand'] ?? '';
+        $expirydate = $_POST['txtExpirydate'] ?? null;
+        $date_received = $_POST['txtDateReceived'] ?? null;
+        $supplier_category = $_POST['txtSupplierCategory'] ?? null;
+        $display_address = $_POST['txtDisplayAddress'] ?? null;
 
-        // Silent migration: ensure addedstock column exists
+        // Check if `date_received` column exists in tbl_product for this database
+        $hasDateReceived = false;
         try {
-            $pdo->exec("ALTER TABLE tbl_product ADD COLUMN addedstock INT DEFAULT 0 AFTER stock");
-        } catch (PDOException $e) {}
-
-        // Silent migration: ensure supplier_category column exists
+            $colStmt = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_product' AND COLUMN_NAME = 'date_received'");
+            $colStmt->execute();
+            $hasDateReceived = (bool) $colStmt->fetchColumn();
+        } catch (Throwable $e) {
+            $hasDateReceived = false;
+        }
+        // Check if `display_address` column exists in tbl_product for this database
+        $hasDisplayAddress = false;
         try {
-            $pdo->exec("ALTER TABLE tbl_product ADD COLUMN supplier_category VARCHAR(200) DEFAULT NULL");
-        } catch (PDOException $e) {}
+            $colStmt2 = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_product' AND COLUMN_NAME = 'display_address'");
+            $colStmt2->execute();
+            $hasDisplayAddress = (bool) $colStmt2->fetchColumn();
+        } catch (Throwable $e) {
+            $hasDisplayAddress = false;
+        }
+        // =========================
+        // IMAGE UPLOAD
+        // =========================
+        $productimage = $old_data['image'] ?? 'noimage.png';
 
-        // File upload handling
-        $f_name = isset($_FILES['myfile']['name']) ? $_FILES['myfile']['name'] : '';
-        $productimage = $old_data ? $old_data['image'] : 'noimage.png';
-        
-        if (!empty($f_name)) {
+        if (!empty($_FILES['myfile']['name'])) {
+
             $f_tmp = $_FILES['myfile']['tmp_name'];
             $f_size = $_FILES['myfile']['size'];
-            $f_extension = strtolower(pathinfo($f_name, PATHINFO_EXTENSION));
+            $f_extension = strtolower(pathinfo($_FILES['myfile']['name'], PATHINFO_EXTENSION));
             $f_newfile = uniqid() . '.' . $f_extension;
 
             $folder = __DIR__ . "/../productimages";
             if (!file_exists($folder)) mkdir($folder, 0777, true);
-            $store = $folder . "/" . $f_newfile;
 
-            if (in_array($f_extension, ['jpg', 'jpeg', 'png', 'gif'])) {
-                if ($f_size < 1000000) {
-                    if (move_uploaded_file($f_tmp, $store)) {
-                        $productimage = $f_newfile;
-                    }
+            if (in_array($f_extension, ['jpg','jpeg','png','gif']) && $f_size < 1000000) {
+                if (move_uploaded_file($f_tmp, $folder . "/" . $f_newfile)) {
+                    $productimage = $f_newfile;
                 }
             }
         }
 
-        if (!empty($id) && $old_data) {
-            // UPDATE EXISTING PRODUCT
-            $current_stock = (int)$old_data['stock'];
-            $total_stock = $current_stock + $quantity_to_add;
-            
-            $final_addedstock = ($quantity_to_add > 0) ? $quantity_to_add : (isset($old_data['addedstock']) ? $old_data['addedstock'] : 0);
+        // =====================================================
+        // INSERT NEW PRODUCT
+        // =====================================================
+        if (empty($id)) {
 
-            $update = $pdo->prepare("UPDATE tbl_product SET product=:product, category=:category, valvetype=:valvetype, purchaseprice=:pprice, saleprice=:saleprice, image=:img, stock=:total_stock, addedstock=:addedstock, brand=:brand, expirydate=:expirydate, supplier_category=:supplier_category WHERE pid=:id");
+            if ($hasDateReceived) {
+                $cols = "product, category, valvetype, purchaseprice, saleprice, image, stock, addedstock, brand, expirydate, supplier_category, date_received";
+                $placeholders = ":product,:category,:valvetype,:pprice,:saleprice,:img,:stock,:addedstock,:brand,:expirydate,:supplier_category,:date_received";
+                if ($hasDisplayAddress) {
+                    $cols .= ", display_address";
+                    $placeholders .= ", :display_address";
+                }
 
-            $update->bindParam(':product', $product);
-            $update->bindParam(':category', $category);
-            $update->bindParam(':valvetype', $valvetype);
-            $update->bindParam(':pprice', $purchaseprice);
-            $update->bindParam(':saleprice', $saleprice);
-            $update->bindParam(':img', $productimage);
-            $update->bindParam(':total_stock', $total_stock);
-            $update->bindParam(':addedstock', $final_addedstock);
-            $update->bindParam(':brand', $brand);
-            $update->bindParam(':expirydate', $expirydate);
-            $update->bindParam(':supplier_category', $supplier_category);
-            $update->bindParam(':id', $id);
+                $insert = $pdo->prepare("INSERT INTO tbl_product ($cols) VALUES ($placeholders)");
 
-            if ($update->execute()) {
-                logActivity($_SESSION['useremail'] ?? 'System', 'Update Product', 'Inventory', "Product updated: '$product' (ID: $id, Added: $quantity_to_add, New Total: $total_stock)", 'INFO');
-                echo json_encode(['success' => true, 'message' => "Product updated successfully. New Total Stock: $total_stock"]);
+                $executeParams = [
+                    ':product' => $product,
+                    ':category' => $category,
+                    ':valvetype' => $valvetype,
+                    ':pprice' => $purchaseprice,
+                    ':saleprice' => $saleprice,
+                    ':img' => $productimage,
+                    ':stock' => $quantity_to_add,
+                    ':addedstock' => $quantity_to_add,
+                    ':brand' => $brand,
+                    ':expirydate' => $expirydate,
+                    ':supplier_category' => $supplier_category,
+                    ':date_received' => $date_received
+                ];
+                if ($hasDisplayAddress) {
+                    $executeParams[':display_address'] = $display_address;
+                }
             } else {
-                echo json_encode(['success' => false, 'message' => 'Product update failed']);
+                $cols = "product, category, valvetype, purchaseprice, saleprice, image, stock, addedstock, brand, expirydate, supplier_category";
+                $placeholders = ":product,:category,:valvetype,:pprice,:saleprice,:img,:stock,:addedstock,:brand,:expirydate,:supplier_category";
+                if ($hasDisplayAddress) {
+                    $cols .= ", display_address";
+                    $placeholders .= ", :display_address";
+                }
+
+                $insert = $pdo->prepare("INSERT INTO tbl_product ($cols) VALUES ($placeholders)");
+
+                $executeParams = [
+                    ':product' => $product,
+                    ':category' => $category,
+                    ':valvetype' => $valvetype,
+                    ':pprice' => $purchaseprice,
+                    ':saleprice' => $saleprice,
+                    ':img' => $productimage,
+                    ':stock' => $quantity_to_add,
+                    ':addedstock' => $quantity_to_add,
+                    ':brand' => $brand,
+                    ':expirydate' => $expirydate,
+                    ':supplier_category' => $supplier_category
+                ];
+                if ($hasDisplayAddress) {
+                    $executeParams[':display_address'] = $display_address;
+                }
             }
 
-        } else {
-            // INSERT NEW PRODUCT
-            $total_stock = $quantity_to_add;
-            $insert = $pdo->prepare("INSERT INTO tbl_product(product, category, valvetype, purchaseprice, saleprice, image, stock, addedstock, brand, expirydate, supplier_category)
-                VALUES(:product, :category, :valvetype, :pprice, :saleprice, :img, :total_stock, :addedstock, :brand, :expirydate, :supplier_category)");
+            $insert->execute($executeParams);
 
-            $insert->bindParam(':product', $product);
-            $insert->bindParam(':category', $category);
-            $insert->bindParam(':valvetype', $valvetype);
-            $insert->bindParam(':pprice', $purchaseprice);
-            $insert->bindParam(':saleprice', $saleprice);
-            $insert->bindParam(':img', $productimage);
-            $insert->bindParam(':total_stock', $total_stock);
-            $insert->bindParam(':addedstock', $quantity_to_add);
-            $insert->bindParam(':brand', $brand);
-            $insert->bindParam(':expirydate', $expirydate);
-            $insert->bindParam(':supplier_category', $supplier_category);
+            logActivity($_SESSION['useremail'] ?? 'System', 'Add Product', 'Inventory', "Product added: $product", 'INFO');
 
-            if ($insert->execute()) {
-                logActivity($_SESSION['useremail'] ?? 'System', 'Add Product', 'Inventory', "Product added: '$product'", 'INFO');
-                echo json_encode(['success' => true, 'message' => 'Product inserted successfully.']);
-            } else {
-                echo json_encode(['success' => false, 'message' => 'Product insertion failed']);
-            }
+            echo json_encode([
+                'success' => true,
+                'message' => "New product added with stock: $quantity_to_add"
+            ]);
+            exit;
         }
+
+        // =====================================================
+        // UPDATE EXISTING PRODUCT
+        // =====================================================
+
+        $messages = [];
+
+        // ---- CHECK STOCK CHANGE ----
+        $current_stock = (int)$old_data['stock'];
+
+        if ($quantity_to_add > 0) {
+            $new_stock = $current_stock + $quantity_to_add;
+
+            $stmt = $pdo->prepare("UPDATE tbl_product SET stock=:stock, addedstock=:addedstock WHERE pid=:id");
+            $stmt->execute([
+                ':stock' => $new_stock,
+                ':addedstock' => $quantity_to_add,
+                ':id' => $id
+            ]);
+
+            $messages[] = "Stock updated. New total stock: $new_stock";
+        }
+
+        // ---- CHECK DETAILS CHANGE ----
+        $dateReceivedChanged = $hasDateReceived ? (($old_data['date_received'] ?? null) != $date_received) : false;
+
+        $detailsChanged = (
+            $old_data['product'] != $product ||
+            $old_data['category'] != $category ||
+            $old_data['valvetype'] != $valvetype ||
+            $old_data['purchaseprice'] != $purchaseprice ||
+            $old_data['saleprice'] != $saleprice ||
+            $old_data['brand'] != $brand ||
+            $old_data['expirydate'] != $expirydate ||
+            $dateReceivedChanged ||
+            $old_data['supplier_category'] != $supplier_category ||
+            ($hasDisplayAddress ? ($old_data['display_address'] ?? null) != $display_address : false) ||
+            $old_data['image'] != $productimage
+        );
+
+        if ($detailsChanged) {
+
+            $updateSql = "UPDATE tbl_product SET
+                product=:product,
+                category=:category,
+                valvetype=:valvetype,
+                purchaseprice=:pprice,
+                saleprice=:saleprice,
+                image=:img,
+                brand=:brand,
+                expirydate=:expirydate,
+                supplier_category=:supplier_category";
+            $updateParams = [
+                ':product' => $product,
+                ':category' => $category,
+                ':valvetype' => $valvetype,
+                ':pprice' => $purchaseprice,
+                ':saleprice' => $saleprice,
+                ':img' => $productimage,
+                ':brand' => $brand,
+                ':expirydate' => $expirydate,
+                ':supplier_category' => $supplier_category,
+                ':id' => $id
+            ];
+
+            if ($hasDisplayAddress) {
+                $updateSql .= ",\n                display_address=:display_address";
+                $updateParams[':display_address'] = $display_address;
+            }
+
+            if ($hasDateReceived) {
+                $updateSql .= ",\n                date_received=:date_received";
+                $updateParams[':date_received'] = $date_received;
+            }
+
+            $updateSql .= "\n                WHERE pid=:id";
+
+            $update = $pdo->prepare($updateSql);
+            $update->execute($updateParams);
+
+            $messages[] = "Product details successfully updated";
+        }
+
+        if (empty($messages)) {
+            $messages[] = "No changes were made";
+        }
+
+        logActivity($_SESSION['useremail'] ?? 'System', 'Update Product', 'Inventory', implode(' | ', $messages), 'INFO');
+
+        echo json_encode([
+            'success' => true,
+            'message' => implode(' & ', $messages)
+        ]);
+
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
+
 } else {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);
 }

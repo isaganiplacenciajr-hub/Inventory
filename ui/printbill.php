@@ -27,9 +27,32 @@ $pdf->SetFont('Arial', 'B', 12);
 $pdf->Cell(0, 6, 'SPM LPG Trading', 0, 1, 'C');
 
 
+// Determine branch info using stored invoice branch; fallback to Matain default
+$invoiceBranch = trim($row->branch ?? '');
+$branchDisplay = 'Matain Branch';
+$branchAddress = 'Matain, Subic, Zambales Branch';
+$branchContact = 'Contact: 0981-243-6970';
+
+$branchConfig = [];
+try {
+    include_once __DIR__ . '/../config/branch.php';
+    if (!empty($invoiceBranch) && isset($branches[$invoiceBranch])) {
+        $branchDisplay = $branches[$invoiceBranch]['display'];
+        $branchAddress = $branches[$invoiceBranch]['address'];
+        $branchContact = 'Contact: ' . ($branches[$invoiceBranch]['contact'] ?? 'N/A');
+    } elseif (!empty($invoiceBranch)) {
+        $branchDisplay = $invoiceBranch;
+        $branchAddress = $activeBranchData['address'] ?? 'Unknown Address';
+        $branchContact = 'Contact: ' . ($activeBranchData['contact'] ?? 'N/A');
+    }
+} catch (Exception $e) {
+    // keep defaults
+}
+
 $pdf->SetFont('Arial', '', 8);
-$pdf->Cell(68, 4, 'Matain, Subic, Zambales Branch', 0, 1, 'C');
-$pdf->Cell(68, 4, 'Contact: 0981-243-6970', 0, 1, 'C');
+$pdf->Cell(68, 4, $branchDisplay, 0, 1, 'C');
+$pdf->Cell(68, 4, $branchAddress, 0, 1, 'C');
+$pdf->Cell(68, 4, $branchContact, 0, 1, 'C');
 $pdf->Ln(2);
 $y = $pdf->GetY();
 $pdf->Line(6, $y, 74, $y);

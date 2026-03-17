@@ -40,7 +40,6 @@ $lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
                                 <table class="table table-hover table-striped">
                                     <thead>
                                         <tr>
-                                            <th>Product Code</th>
                                             <th>Category</th>
                                             <th>Brand</th>
                                             <th class="text-right">Stock</th>
@@ -56,12 +55,9 @@ $lowThreshold = isset($_GET['low']) ? max(0, (int)$_GET['low']) : 5;
                                                 $low = $stock <= $lowThreshold;
                                                 ?>
                                                 <tr <?php echo $low ? 'style="background-color:#fff3cd"' : ''; ?>>
-                                                    <td><?php echo htmlspecialchars($p['product']); ?></td>
                                                     <td><?php echo htmlspecialchars($p['category']); ?></td>
                                                     <td><?php echo htmlspecialchars((string)$p['brand']); ?></td>
                                                     <td class="text-right"><?php echo number_format($stock); ?></td>
-                                                    <td>
-                                                      
                                                 </tr>
                                             <?php endforeach; ?>
                                         <?php endif; ?>

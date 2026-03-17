@@ -466,8 +466,19 @@ class ArchiveManager {
                 VALUES (?, ?, ?, NOW(), ?)
             ");
             $stmt->execute([$invoiceId, $action, $this->userid, $notes]);
+
+            // Also log to main activity_logs for unified audit trail
+            if (function_exists('logActivity')) {
+                $actionLabel = ucfirst(str_replace('_', ' ', $action));
+                $description = "Invoice #$invoiceId - " . $actionLabel;
+                if (!empty($notes)) {
+                    $description .= " - Notes: " . substr($notes, 0, 200);
+                }
+                logActivity('System', 'Archive: ' . $actionLabel, 'Archive', $description, 'INFO');
+            }
         } catch (Exception $e) {
             // Log errors silently to not interrupt main operations
+            error_log('[ArchiveManager] logArchiveActivity error: ' . $e->getMessage());
         }
     }
     

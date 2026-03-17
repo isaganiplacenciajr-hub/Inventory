@@ -35,7 +35,7 @@ ALTER TABLE tbl_product ADD COLUMN supplier_category VARCHAR(200) DEFAULT NULL;
 - **Method:** POST
 - **Parameters:**
   - `txtID` - Product ID (empty for new, filled for update)
-  - `txtBarcode` - Category
+  - `txtCategory` - Category
   - `txtProductcode` - Product Code
   - `txtvalvetype` - Valve Type
   - `txtpurchaseprice` - Purchase Price

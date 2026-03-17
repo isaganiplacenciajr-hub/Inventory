@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS `tbl_invoice_details_archive` (
   `archive_detail_id` int(11) NOT NULL AUTO_INCREMENT,
   `id` int(11) NOT NULL,
   `invoice_id` int(11) NOT NULL,
-  `barcode` varchar(200) NOT NULL,
   `product_id` int(11) NOT NULL,
   `product_name` varchar(200) NOT NULL,
   `qty` int(11) NOT NULL,

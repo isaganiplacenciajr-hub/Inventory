@@ -13,10 +13,6 @@ $select->execute();
 $row=$select->fetch(PDO::FETCH_ASSOC);
 
 $id_db=$row['pid'];
-
-$barcode_db=$row['pid'];
-
-$barcode_db=$row['barcode'];
 $product_db=$row['product'];
 $supplier_db=$row['supplier'];
 $category_db=$row['category'];
@@ -148,10 +144,6 @@ $select->execute();
 $row=$select->fetch(PDO::FETCH_ASSOC);
 
 $id_db=$row['pid'];
-
-$barcode_db=$row['pid'];
-
-$barcode_db=$row['barcode'];
 $product_db=$row['product'];
 $supplier_db=$row['supplier'];
 $category_db=$row['category'];
@@ -208,11 +200,6 @@ $image_db=$row['image'];
 
 
 <div class="form-group">
-                    <label>Barcode</label>
-                    <input type="text" value="<?php echo $barcode_db;?>" class="form-control" placeholder="Enter Barcode" name="txtbarcode" autocomplete="off" disabled >
-                  </div>
-
- <div class="form-group">
                     <label>Product Name</label>
                     <input type="text" value="<?php echo $product_db;?>" class="form-control" placeholder="Enter Name" name="txtproductname" required>
                   </div>

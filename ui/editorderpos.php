@@ -2,6 +2,7 @@
 ob_start();
 
 include_once 'connectdb.php';
+include_once 'utils.php';
 session_start();
 
 include_once "header.php";
@@ -114,8 +115,18 @@ if (isset($_POST['btnupdateorder'])) {
 
   $update_tbl_invoice->execute();
 
-
-  // if($update_tbl_invoice->execute()){
+  // Log order modification
+  if (function_exists('logActivity')) {
+    $description = sprintf(
+      'Invoice #%d updated | Subtotal: ₱%.2f | Discount: ₱%.2f | Total: ₱%.2f | Payment: %s',
+      $id,
+      $txt_subtotal,
+      $txt_discount,
+      $txt_total,
+      $txt_payment_type
+    );
+    logActivity($_SESSION['useremail'] ?? 'System', 'Update Sale', 'Sales', $description, 'INFO');
+  }
   //   $_SESSION['status'] = "Order Update Successfully"; 
   //   $_SESSION['status_code'] = "success";
 
@@ -189,7 +200,7 @@ values (:invid,:pid,:name,:qty,:rate,:saleprice,:order_date)");
 } //1st if end
 
 
-//  var_dump($arr_barcode);
+
 
 
 
@@ -541,7 +552,7 @@ include_once "footer.php";
           $('#saleprice_id' + data["product_id"]).html(saleprice);
           $('#saleprice_idd' + data["product_id"]).val(saleprice);
 
-          // $("#txtbarcode_id").val("");
+
 
           calculate(0, 0);
 
@@ -553,9 +564,7 @@ include_once "footer.php";
 
           productarr.push(data["product_id"]);
 
-          // $("#txtbarcode_id").val("");
-
-          function addrow(product_id, product_name, qty, rate, saleprice, stock, barcode) {
+          function addrow(product_id, product_name, qty, rate, saleprice, stock) {
 
 
             var tr = '<tr>' +
@@ -591,7 +600,7 @@ include_once "footer.php";
         }
       }); //end function each
 
-      $("#txtbarcode_id").val("");
+      $("#product_select").val("").trigger('change');
 
     } //end pf success function
 
@@ -603,99 +612,7 @@ include_once "footer.php";
 
 
 
-  $(function() {
-
-    $('#txtbarcode_id').on('change', function() {
-
-      var barcode = $("#txtbarcode_id").val();
-
-      $.ajax({
-        url: "getproduct.php",
-        method: "get",
-        dataType: "json",
-        data: {
-          id: barcode
-        },
-        success: function(data) {
-
-          // alert("pID");
-
-          // console.log(data);
-
-          if (jQuery.inArray(data["pid"], productarr) !== -1) {
-
-            var actualqty = parseInt($('#qty_id' + data["pid"]).val()) + 1;
-            $('#qty_id' + data["pid"].val(actualqty));
-
-
-
-            var saleprice = parseInt(actualqty) * data["saleprice"];
-
-            $('#saleprice_id' + data["pid"]).html(saleprice);
-            $('#saleprice_idd' + data["pid"]).val(saleprice);
-
-            // $("#txtbarcode_id").val("");
-
-            calculate(0, 0);
-            $("#txtpaid").val("");
-            $("#txtdue").val("");
-
-          } else {
-
-            //revised version
-
-            addrow(data["pid"], data["product"], data["saleprice"], data["stock"]);
-
-            productarr.push(data["pid"]);
-
-            // $("#txtbarcode_id").val("");
-
-            function addrow(pid, product, saleprice, stock, ) {
-
-
-              var tr = '<tr>' +
-
-  
-
-                '<td style="text-align: left; vertical-align: middle; font-size: 17px;"><class="form-control product_c" name="product_arr[]" <span class="badge badge-dark">' + product + '</span><input type="hidden" class="form-control pid" name="pid_arr[]" value="' + product + '"><input type="hidden" class="form-control product" name="product_arr[]" value="' + pid + '"></td>' +
-
-                '<td style="text-align:left; vertical-align:middle; font-size:17px;">' +
-                '<span class="badge badge-primary stocklbl" name="stock_arr[]"  id="stock_id' + pid + '">' + stock + '</span>' +
-                '<input type="hidden" class="form-control stock_c" name="stock_c_arr[]" id="stock_idd' + pid + '" value="' + stock + '"></td>' +
-
-                '<td style="text-align:left; vertical-align:middle; font-size:17px;">' +
-                '<span class="badge badge-warning price" name="price_arr[]"  id="price_id' + pid + '">' + saleprice + '</span>' +
-                '<input type="hidden" class="form-control stock_c" name="stock_c[]" id="stock_idd' + pid + '" value="' + stock + '"></td>' +
-
-                '<td><input type="text" class="form-control qty" name="quantity_arr[]" id="qty_id' + pid + '" value="1" size="1"></td>' +
-                '<td style="text-align:left; vertical-align:middle; font-size:17px;">' +
-                '<span class="badge badge-success totalamt" name="netamt_arr[]"  id="saleprice_id' + pid + '">' + saleprice + '</span>' +
-                '<input type="hidden" class="form-control saleprice" name="saleprice_arr[]" id="saleprice_idd' + pid + '" value="' + saleprice + '"></td>' +
-
-
-                '<td><center><button type="button" name="remove"  class=" btn btn-danger btn-sm btnremove" data-id="' + pid + '"><span class="fas fa-trash"></span></button></center></td>' +
-
-                '</tr>';
-
-              $('.details').append(tr);
-
-              calculate(0, 0);
-              $("#txtpaid").val("");
-              $("#txtdue").val("");
-
-            } //end f function addrow
-
-          }
-
-          $("#txtbarcode_id").val("");
-
-        } //end pf success function
-
-      }) //end of ajax request
-
-    }) // end of onchange function
-
-  }); // end of main function
+  // Product selection flow below.
 
 
   var productarr = [];
@@ -731,8 +648,6 @@ include_once "footer.php";
             $('#saleprice_id' + data["pid"]).html(saleprice);
             $('#saleprice_idd' + data["pid"]).val(saleprice);
 
-            // $("#txtbarcode_id").val("");
-
             calculate(0, 0);
             $("#txtpaid").val("");
             $("#txtdue").val("");
@@ -745,9 +660,7 @@ include_once "footer.php";
 
             productarr.push(data["pid"]);
 
-            // $("#txtbarcode_id").val("");
-
-            function addrow(pid, product, saleprice, stock, barcode) {
+            function addrow(pid, product, saleprice, stock) {
 
 
               var tr = '<tr>' +
@@ -784,7 +697,7 @@ include_once "footer.php";
 
           }
 
-          $("#txtbarcode_id").val("");
+          $("#product_select").val("").trigger('change');
 
         } //end pf success function
 

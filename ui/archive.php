@@ -366,9 +366,9 @@ function viewDetails(archiveId, invoiceId) {
           <tr>
             <td>${item.product_name}</td>
             <td class="text-center">${item.qty}</td>
-            <td class="text-right">₱${parseFloat(item.rate).toFixed(2)}</td>
-            <td class="text-right">₱${parseFloat(item.saleprice).toFixed(2)}</td>
-            <td>${item.servicetype || '-'}</td>
+            <td class="text-right">₱${parseFloat(item.price).toFixed(2)}</td>
+            <td class="text-right">₱${parseFloat(item.total_price).toFixed(2)}</td>
+            <td>${item.service_type || '-'}</td>
           </tr>
         `;
       });

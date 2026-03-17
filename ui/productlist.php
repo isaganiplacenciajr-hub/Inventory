@@ -49,9 +49,10 @@ include_once"header.php";
   <thead> 
 <tr>
 
-  <td>Product Code</td>
-  <td>Category</td>
-  <td>Supplier Category</td>
+  <td>Date Received</td>
+    <td>Category</td>
+  <td>Supplier</td>
+  <td>Supplier Address</td>
   <td>Valve Type</td>
   <td>Added Stock</td>
   <td>Current Stock (Total)</td>
@@ -78,12 +79,19 @@ while($row=$select->fetch(PDO::FETCH_OBJ))
 
 {
   $supplier_category = !empty($row->supplier_category) ? htmlspecialchars($row->supplier_category) : 'N/A';
+  $display_address = !empty($row->display_address) ? htmlspecialchars($row->display_address) : 'N/A';
+  if (!empty($row->date_received) && $row->date_received != '0000-00-00') {
+    $dateReceived = htmlspecialchars(date('F j, Y', strtotime($row->date_received)));
+  } else {
+    $dateReceived = '';
+  }
 
   echo'
   <tr>
-  <td>'.$row->product.'</td>
+  <td>'.$dateReceived.'</td>
   <td>'.$row->category.'</td>
   <td>'.$supplier_category.'</td>
+  <td>'.$display_address.'</td>
   <td>'.$row->valvetype.'</td>
   <td>'.$row->addedstock.'</td>
   <td>'.$row->stock.'</td>
@@ -141,7 +149,7 @@ while($row=$select->fetch(PDO::FETCH_OBJ))
             <div class="col-md-6">
               <div class="form-group">
                 <label>Category:</label>
-                <select id="category" class="form-control" name="txtBarcode" required>
+                <select id="category" class="form-control" name="txtCategory" required>
                   <option value="" disabled selected>Select Category</option>
                   <option value="2.7 kg (Small)">2.7 kg (Small)</option>
                   <option value="5 kg (Medium)">5 kg (Medium)</option>
@@ -151,10 +159,7 @@ while($row=$select->fetch(PDO::FETCH_OBJ))
                 </select>
               </div>
 
-              <div class="form-group">
-                <label>Product Code:</label>
-                <input type="text" class="form-control" placeholder="Enter Product Code" name="txtProductcode" id="txtProductcode" required>
-              </div>
+              <input type="hidden" name="txtProductcode" id="txtProductcode">
 
               <div class="form-group">
                 <label>Valve Type:</label>
@@ -172,8 +177,12 @@ while($row=$select->fetch(PDO::FETCH_OBJ))
               </div>
 
               <div class="form-group">
-                <label>Supplier Category:</label>
-                <input type="text" class="form-control" placeholder="Enter Supplier Category" name="txtSupplierCategory" id="txtSupplierCategory">
+                <label>Supplier:</label>
+                <input type="text" class="form-control" placeholder="Enter Supplier" name="txtSupplierCategory" id="txtSupplierCategory">
+              </div>
+              <div class="form-group">
+                <label>Supplier Address:</label>
+                <input type="text" class="form-control" placeholder="Enter Supplier Address" name="txtDisplayAddress" id="txtDisplayAddress">
               </div>
             </div>
 
@@ -197,6 +206,11 @@ while($row=$select->fetch(PDO::FETCH_OBJ))
               <div class="form-group">
                 <label>Expiry Date:</label>
                 <input type="date" class="form-control" name="txtExpirydate" id="txtExpirydate">
+              </div>
+
+              <div class="form-group">
+                <label>Date Received:</label>
+                <input type="date" class="form-control" name="txtDateReceived" id="txtDateReceived">
               </div>
 
               <div class="form-group">
@@ -299,10 +313,12 @@ $(document).ready(function() {
     const brandChanged = $('#txtBrand').val() !== originalValues.brand;
     const valvetypeChanged = $('#txtvalvetype').val() !== originalValues.valvetype;
     const supplierCategoryChanged = $('#txtSupplierCategory').val() !== originalValues.supplierCategory;
+    const displayAddressChanged = $('#txtDisplayAddress').val() !== originalValues.displayAddress;
+    const dateReceivedChanged = $('#txtDateReceived').val() !== originalValues.dateReceived;
 
     const detailsChanged = priceChanged || salePriceChanged || expiryChanged || 
-                          productCodeChanged || brandChanged || valvetypeChanged || 
-                          supplierCategoryChanged;
+          productCodeChanged || brandChanged || valvetypeChanged || 
+          supplierCategoryChanged || dateReceivedChanged || displayAddressChanged;
 
     if (!txtID) {
       // New product
@@ -359,7 +375,9 @@ $(document).ready(function() {
           $('#txtStockQty').val('');
           $('#txtBrand').val(data.brand);
           $('#txtExpirydate').val(data.expirydate);
+          $('#txtDateReceived').val(data.date_received || '');
           $('#txtSupplierCategory').val(data.supplier_category || '');
+          $('#txtDisplayAddress').val(data.display_address || '');
           
           // Store original values for change detection
           originalValues = {
@@ -369,7 +387,9 @@ $(document).ready(function() {
             productcode: data.product,
             brand: data.brand,
             valvetype: data.valvetype || '',
-            supplierCategory: data.supplier_category || ''
+            supplierCategory: data.supplier_category || '',
+            displayAddress: data.display_address || '',
+            dateReceived: data.date_received || ''
           };
           
           $('#addProductModalLabel').text('Edit Product - Add Stock');
@@ -391,6 +411,7 @@ $(document).ready(function() {
           $('#txtStockQty').val('');
           $('#txtCurrentStock').val(0);
           $('#txtExpirydate').val('');
+          $('#txtDateReceived').val('');
           originalValues = {};
           
           // Apply hardcoded defaults
@@ -413,7 +434,7 @@ $(document).ready(function() {
   });
 
   // Add event listeners to detect field changes
-  $('#txtpurchaseprice, #txtsaleprice2, #txtExpirydate, #txtProductcode, #txtBrand, #txtvalvetype, #txtSupplierCategory, #txtStockQty').on('change keyup', function() {
+  $('#txtpurchaseprice, #txtsaleprice2, #txtExpirydate, #txtProductcode, #txtBrand, #txtvalvetype, #txtSupplierCategory, #txtDisplayAddress, #txtStockQty, #txtDateReceived').on('change keyup', function() {
     updateButtonLabel();
   });
 
@@ -472,7 +493,8 @@ $(document).ready(function() {
       success: function(data) {
         if (data.success) {
           const product = data.product;
-          const supplierCategory = product.supplier_category || 'N/A';
+              const supplierCategory = product.supplier_category || 'N/A';
+              const displayAddress = product.display_address || 'N/A';
           const expiryDisplay = (product.expirydate && product.expirydate !== '0000-00-00') 
             ? new Date(product.expirydate).toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'})
             : 'N/A';
@@ -484,9 +506,10 @@ $(document).ready(function() {
               <div class="col-md-6">
                 <ul class="list-group">
                   <li class="list-group-item list-group-item-info"><b>PRODUCT DETAILS</b></li>
-                  <li class="list-group-item"><b>Product Code</b><span class="badge badge-warning float-right">${product.product}</span></li>
+                  <li class="list-group-item"><b>Date Received</b><span class="badge badge-warning float-right">${product.date_received || ''}</span></li>
                   <li class="list-group-item"><b>Category</b><span class="badge badge-success float-right">${product.category}</span></li>
-                  <li class="list-group-item"><b>Supplier Category</b><span class="badge badge-info float-right">${supplierCategory}</span></li>
+                  <li class="list-group-item"><b>Supplier</b><span class="badge badge-info float-right">${supplierCategory}</span></li>
+                  <li class="list-group-item"><b>Supplier Address</b><span class="badge badge-light float-right">${displayAddress}</span></li>
                   <li class="list-group-item"><b>Valve Type</b><span class="badge badge-primary float-right">${product.valvetype}</span></li>
                   <li class="list-group-item"><b>Purchase Price</b><span class="badge badge-secondary float-right">${product.purchaseprice}</span></li>
                   <li class="list-group-item"><b>Sale Price</b><span class="badge badge-dark float-right">${product.saleprice}</span></li>
@@ -543,7 +566,9 @@ $(document).ready(function() {
           $('#txtCurrentStock').val(product.stock);
           $('#txtBrand').val(product.brand);
           $('#txtExpirydate').val(product.expirydate);
+          $('#txtDateReceived').val(product.date_received || '');
           $('#txtSupplierCategory').val(product.supplier_category || '');
+          $('#txtDisplayAddress').val(product.display_address || '');
           $('#txtStockQty').val('');
           
           // Store original values for change detection
@@ -554,7 +579,9 @@ $(document).ready(function() {
             productcode: product.product,
             brand: product.brand,
             valvetype: product.valvetype,
-            supplierCategory: product.supplier_category || ''
+            supplierCategory: product.supplier_category || '',
+            displayAddress: product.display_address || '',
+            dateReceived: product.date_received || ''
           };
           
           $('#btnsave').text('Update Product');

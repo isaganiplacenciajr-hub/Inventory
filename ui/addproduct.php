@@ -34,7 +34,7 @@ include_once "header.php";
             </div>
             <div class="card-body">
               <p>Click the "Add New Product" button above to add or edit products using the modal form.</p>
-              <p>View the <a href="productlist.php">Product List</a> to see all products with their Supplier Category information.</p>
+              <p>View the <a href="productlist.php">Product List</a> to see all products with their Supplier information.</p>
             </div>
           </div>
         </div>
@@ -61,7 +61,7 @@ include_once "header.php";
             <div class="col-md-6">
               <div class="form-group">
                 <label>Category:</label>
-                <select id="category" class="form-control" name="txtBarcode" required>
+                <select id="category" class="form-control" name="txtCategory" required>
                   <option value="" disabled selected>Select Category</option>
                   <option value="2.7 kg (Small)">2.7 kg (Small)</option>
                   <option value="5 kg (Medium)">5 kg (Medium)</option>
@@ -71,10 +71,7 @@ include_once "header.php";
                 </select>
               </div>
 
-              <div class="form-group">
-                <label>Product Code:</label>
-                <input type="text" class="form-control" placeholder="Enter Product Code" name="txtProductcode" id="txtProductcode" required>
-              </div>
+              <input type="hidden" name="txtProductcode" id="txtProductcode">
 
               <div class="form-group">
                 <label>Valve Type:</label>
@@ -92,8 +89,12 @@ include_once "header.php";
               </div>
 
               <div class="form-group">
-                <label>Supplier Category:</label>
-                <input type="text" class="form-control" placeholder="Enter Supplier Category" name="txtSupplierCategory" id="txtSupplierCategory">
+                <label>Supplier:</label>
+                <input type="text" class="form-control" placeholder="Enter Supplier" name="txtSupplierCategory" id="txtSupplierCategory">
+              </div>
+              <div class="form-group">
+                <label>Supplier Address:</label>
+                <input type="text" class="form-control" placeholder="Enter Supplier Address" name="txtDisplayAddress" id="txtDisplayAddress">
               </div>
             </div>
 
@@ -117,6 +118,11 @@ include_once "header.php";
               <div class="form-group">
                 <label>Expiry Date:</label>
                 <input type="date" class="form-control" name="txtExpirydate" id="txtExpirydate">
+              </div>
+
+              <div class="form-group">
+                <label>Date Received:</label>
+                <input type="date" class="form-control" name="txtDateReceived" id="txtDateReceived">
               </div>
 
               <div class="form-group">
@@ -167,10 +173,12 @@ $(document).ready(function() {
     const brandChanged = $('#txtBrand').val() !== originalValues.brand;
     const valvetypeChanged = $('#txtvalvetype').val() !== originalValues.valvetype;
     const supplierCategoryChanged = $('#txtSupplierCategory').val() !== originalValues.supplierCategory;
+    const dateReceivedChanged = $('#txtDateReceived').val() !== originalValues.dateReceived;
+    const displayAddressChanged = $('#txtDisplayAddress').val() !== originalValues.displayAddress;
 
     const detailsChanged = priceChanged || salePriceChanged || expiryChanged || 
-                          productCodeChanged || brandChanged || valvetypeChanged || 
-                          supplierCategoryChanged;
+          productCodeChanged || brandChanged || valvetypeChanged || 
+          supplierCategoryChanged || dateReceivedChanged || displayAddressChanged;
 
     if (!txtID) {
       // New product
@@ -226,7 +234,9 @@ $(document).ready(function() {
           $('#txtStockQty').val('');
           $('#txtBrand').val(data.brand);
           $('#txtExpirydate').val(data.expirydate);
+          $('#txtDateReceived').val(data.date_received || '');
           $('#txtSupplierCategory').val(data.supplier_category || '');
+          $('#txtDisplayAddress').val(data.display_address || '');
           
           // Store original values for change detection
           originalValues = {
@@ -236,7 +246,9 @@ $(document).ready(function() {
             productcode: data.product,
             brand: data.brand,
             valvetype: data.valvetype || '',
-            supplierCategory: data.supplier_category || ''
+            supplierCategory: data.supplier_category || '',
+            dateReceived: data.date_received || '',
+            displayAddress: data.display_address || ''
           };
           
           $('#addProductModalLabel').text('Edit Product - Add Stock');
@@ -258,6 +270,8 @@ $(document).ready(function() {
           $('#txtStockQty').val('');
           $('#txtCurrentStock').val(0);
           $('#txtExpirydate').val('');
+          $('#txtDateReceived').val('');
+          $('#txtDisplayAddress').val('');
           originalValues = {};
           
           const cfg = mapping[selectedCategory];
@@ -279,7 +293,7 @@ $(document).ready(function() {
   });
 
   // Add event listeners to detect field changes
-  $('#txtpurchaseprice, #txtsaleprice2, #txtExpirydate, #txtProductcode, #txtBrand, #txtvalvetype, #txtSupplierCategory, #txtStockQty').on('change keyup', function() {
+  $('#txtpurchaseprice, #txtsaleprice2, #txtExpirydate, #txtProductcode, #txtBrand, #txtvalvetype, #txtSupplierCategory, #txtDisplayAddress, #txtStockQty, #txtDateReceived').on('change keyup', function() {
     updateButtonLabel();
   });
 

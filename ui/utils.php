@@ -10,6 +10,15 @@ if (!isset($pdo)) {
     }
 }
 
+// company-wide configuration constants
+if (!defined('COMPANY_VAT_NUMBER')) {
+    // set your official VAT number here; receipts will show this when invoice-level value is empty
+    define('COMPANY_VAT_NUMBER', '123-456-789-000');
+}
+if (!defined('DEFAULT_VAT_RATE')) {
+    define('DEFAULT_VAT_RATE', 12); // default VAT rate in percent
+}
+
 /**
  * Log an activity to the database
  * 

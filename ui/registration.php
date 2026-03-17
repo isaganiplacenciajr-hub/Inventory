@@ -1,6 +1,7 @@
 <?php
 session_start();
 include_once 'connectdb.php';
+include_once 'utils.php';
 
 // Redirect unauthorized users
 if(!isset($_SESSION['useremail']) || $_SESSION['role']=="User"){
@@ -15,9 +16,21 @@ ini_set('display_errors', 1);
 // DELETE USER
 /////////////////////////////////////////////////
 if(isset($_GET['delete_id'])){
+    // Get user details before deletion for logging
+    $getUser = $pdo->prepare("SELECT userid, username, useremail, role FROM tbl_user WHERE userid=:id");
+    $getUser->bindParam(':id', $_GET['delete_id']);
+    $getUser->execute();
+    $user = $getUser->fetch(PDO::FETCH_ASSOC);
+
     $delete = $pdo->prepare("DELETE FROM tbl_user WHERE userid=:id");
     $delete->bindParam(':id', $_GET['delete_id']);
     $delete->execute();
+
+    // Log user deletion
+    if ($user && function_exists('logActivity')) {
+        $description = 'User ' . $user['username'] . ' (' . $user['useremail'] . ') with role ' . $user['role'] . ' deleted from system';
+        logActivity($_SESSION['useremail'] ?? 'System', 'Delete User', 'User Management', $description, 'INFO');
+    }
 
     $_SESSION['status'] = "User Deleted Successfully!";
     $_SESSION['status_code'] = "success";
@@ -57,8 +70,8 @@ if(isset($_POST['btnsave'])){
         exit();
     }
 
-    if(!preg_match('/^[0-9]{11}$/', $contact)){
-        $_SESSION['status'] = "Contact Number must be exactly 11 digits!";
+    if(!preg_match('/^09[0-9]{9}$/', $contact)){
+        $_SESSION['status'] = "Contact Number must be 11 digits and start with 09!";
         $_SESSION['status_code'] = "error";
         header("location: registration.php");
         exit();
@@ -66,6 +79,7 @@ if(isset($_POST['btnsave'])){
 
     $fulladdress = trim($_POST['street']).', '.trim($_POST['barangay']).', '.trim($_POST['city']).', '.trim($_POST['province']);
 
+    // Store password as plaintext (not hashed)
     $insert = $pdo->prepare("INSERT INTO tbl_user 
         (username,userage,birthday,gender,useremail,userpassword,usercontact,useraddress,role) 
         VALUES (:name,:age,:birthday,:gender,:user,:password,:contact,:address,:role)");
@@ -81,6 +95,18 @@ if(isset($_POST['btnsave'])){
         ':address'=>$fulladdress,
         ':role'=>$_POST['txtselect_option']
     ]);
+
+    // Log user creation
+    if (function_exists('logActivity')) {
+        $description = sprintf(
+            'New user created | Username: %s | Name: %s | Role: %s | Contact: %s',
+            htmlspecialchars($username),
+            htmlspecialchars(trim($_POST['txtname'])),
+            htmlspecialchars($_POST['txtselect_option']),
+            htmlspecialchars($contact)
+        );
+        logActivity($_SESSION['useremail'] ?? 'System', 'Create User', 'User Management', $description, 'INFO');
+    }
 
     $_SESSION['status'] = "Registration Completed Successfully!";
     $_SESSION['status_code'] = "success";
@@ -138,11 +164,17 @@ if(isset($_POST['btnupdate'])){
     }
 
     // Contact validation
-    if(!preg_match('/^[0-9]{11}$/', $contact)){
-        $_SESSION['status'] = "Contact Number must be exactly 11 digits!";
+    if(!preg_match('/^09[0-9]{9}$/', $contact)){
+        $_SESSION['status'] = "Contact Number must be 11 digits and start with 09!";
         $_SESSION['status_code'] = "error";
         header("location: registration.php");
         exit();
+    }
+
+    // If password provided, use plaintext; otherwise keep existing password
+    $password_param = '';
+    if(!empty($password)){
+        $password_param = $password;
     }
 
     // Update user
@@ -164,12 +196,25 @@ if(isset($_POST['btnupdate'])){
         ':birthday'=>$birthday,
         ':gender'=>$gender,
         ':useremail'=>$username,
-        ':password'=>$password,
+        ':password'=>$password_param,
         ':contact'=>$contact,
         ':address'=>$fulladdress,
         ':role'=>$role,
         ':id'=>$userId
     ]);
+
+    // Log user update
+    if (function_exists('logActivity')) {
+        $changes = [];
+        if ($name != $curr['username']) $changes[] = "Name: " . $curr['username'] . " → " . $name;
+        if ($username != $curr['useremail']) $changes[] = "Email: " . $curr['useremail'] . " → " . $username;
+        if (!empty($password_param)) $changes[] = "Password changed";
+        if ($role != $curr['role']) $changes[] = "Role: " . $curr['role'] . " → " . $role;
+        if ($contact != $curr['usercontact']) $changes[] = "Contact: " . $curr['usercontact'] . " → " . $contact;
+        
+        $description = 'User ' . $curr['username'] . ' (ID: ' . $userId . ') updated. Changes: ' . implode(', ', $changes);
+        logActivity($_SESSION['useremail'] ?? 'System', 'Update User', 'User Management', $description, 'INFO');
+    }
 
     $_SESSION['status'] = "User Information Updated Successfully!";
     $_SESSION['status_code'] = "success";
@@ -181,6 +226,12 @@ include_once "header.php";
 ?>
 
 <div class="content-wrapper">
+    <?php if(isset($_SESSION['status'])){ ?>
+    <div class="alert alert-<?= $_SESSION['status_code'] == 'success' ? 'success' : 'danger' ?> alert-dismissible fade show" style="margin: 10px;">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <strong><?php echo $_SESSION['status']; ?></strong>
+    </div>
+    <?php unset($_SESSION['status']); } ?>
     <div class="content">
         <div class="container-fluid">
             <div class="row">
@@ -196,11 +247,11 @@ include_once "header.php";
                             <table class="table table-bordered table-striped">
                                 <thead>
                                     <tr>
-                                        <th>ID</th><th>Name</th><th>Age</th><th>Birthday</th><th>Gender</th>
-                                        <th>Username</th><th>Password</th><th>Contact</th>
-                                        <th>Street</th><th>Barangay</th><th>City</th><th>Province</th>
-                                        <th>Role</th><th>Action</th>
-                                    </tr>
+                                                <th>ID</th><th>Name</th><th>Age</th><th>Birthday</th><th>Gender</th>
+                                                <th>Username</th><th>Contact</th>
+                                                <th>Street</th><th>Barangay</th><th>City</th><th>Province</th>
+                                                <th>Role</th><th>Action</th>
+                                            </tr>
                                 </thead>
                                 <tbody>
                                 <?php
@@ -221,7 +272,6 @@ include_once "header.php";
                                         <td><?= $row->birthday ?></td>
                                         <td><?= $row->gender ?></td>
                                         <td><?= $row->useremail ?></td>
-                                        <td><?= $row->userpassword ?></td>
                                         <td><?= $row->usercontact ?></td>
                                         <td><?= $street ?></td>
                                         <td><?= $barangay ?></td>
@@ -230,7 +280,7 @@ include_once "header.php";
                                         <td><?= $row->role ?></td>
                                         <td>
                                             <button class="btn btn-info btn-sm" data-toggle="modal" data-target="#editModal<?= $row->userid ?>">Edit</button>
-                                            <a href="registration.php?delete_id=<?= $row->userid ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure to delete this user?')">Delete</a>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteConfirm(<?= $row->userid ?>)">Delete</button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -248,7 +298,7 @@ include_once "header.php";
 <div class="modal fade" id="createUserModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-scrollable modal-xl">
         <div class="modal-content">
-            <form method="post" id="userForm">
+            <form method="post" id="userForm" autocomplete="off">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title">Create New User Account</h5>
                     <button type="button" class="close text-white" data-dismiss="modal">
@@ -285,11 +335,11 @@ include_once "header.php";
                     </div>
                     <div class="form-group">
                         <label>Password (min 8 characters)</label>
-                        <input type="text" name="txtpassword" id="txtpassword" class="form-control" placeholder="Password" required>
+                        <input type="password" name="txtpassword" id="txtpassword" class="form-control" placeholder="Password" required autocomplete="new-password">
                     </div>
                     <div class="form-group">
                         <label>Contact Number</label>
-                        <input type="text" name="txtcontact" class="form-control" placeholder="11-digit Contact Number" required>
+                        <input type="text" name="txtcontact" class="form-control" placeholder="11-digit Contact Number" required autocomplete="tel">
                     </div>
                     <div class="form-row">
                         <div class="form-group col-md-3">
@@ -338,7 +388,7 @@ include_once "header.php";
 <div class="modal fade" id="editModal<?= $row->userid ?>" tabindex="-1">
     <div class="modal-dialog modal-dialog-scrollable modal-xl">
         <div class="modal-content">
-            <form method="post">
+            <form method="post" autocomplete="off">
                 <div class="modal-header bg-info text-white">
                     <h5 class="modal-title">Edit User</h5>
                     <button type="button" class="close text-white" data-dismiss="modal">
@@ -375,7 +425,7 @@ include_once "header.php";
                     </div>
                     <div class="form-group">
                         <label>Password (leave blank if not changing)</label>
-                        <input type="text" name="edit_password" class="form-control" placeholder="Enter new password if changing">
+                        <input type="password" name="edit_password" class="form-control" placeholder="Enter new password if changing" autocomplete="new-password">
                     </div>
                     <div class="form-group">
                         <label>Contact Number</label>
@@ -429,31 +479,29 @@ $(document).ready(function(){
     });
 
     $('#userForm').on('submit', function(e){
-        let username = $('#txtuser').val();
-        let password = $('#txtpassword').val();
-        let contact = $('input[name="txtcontact"]').val();
-
-        if(username.includes('@gmail.com')){
-            e.preventDefault();
-            Swal.fire({icon:'error',title:'Invalid Username',text:'Username must not contain @gmail.com!'});
-            return false;
-        }
-        if(password.length < 8){
-            e.preventDefault();
-            Swal.fire({icon:'error',title:'Password Too Short',text:'Password must be at least 8 characters!'});
-            return false;
-        }
-        if(!/^\d{11}$/.test(contact)){
-            e.preventDefault();
-            Swal.fire({icon:'error',title:'Invalid Contact',text:'Contact Number must be exactly 11 digits!'});
-            return false;
-        }
+        // Client-side validation removed as per request
     });
 
-    <?php if(isset($_SESSION['status'])){ ?>
-    Swal.fire({icon:'<?php echo $_SESSION['status_code']; ?>',title:'<?php echo $_SESSION['status']; ?>',showConfirmButton:true,timer:3000});
-    <?php unset($_SESSION['status']); } ?>
+    // Edit form validation removed
 });
+
+// Delete confirmation function
+function deleteConfirm(id) {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: 'You are about to permanently delete this user account. This action cannot be undone. Do you want to proceed?.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Delete',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = 'registration.php?delete_id=' + id;
+        }
+    });
+}
 </script>
 <style>
 .modal-dialog-scrollable { max-height: 90vh; }

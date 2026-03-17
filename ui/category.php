@@ -1,6 +1,7 @@
 <?php
 
 include_once 'connectdb.php';
+include_once 'utils.php';
 session_start();
 
 include_once "header.php";
@@ -25,12 +26,15 @@ if($insert->execute()){
     $_SESSION['status'] = "Category Added Successfully"; 
     $_SESSION['status_code'] = "success";
 
+    // Log category addition
+    if (function_exists('logActivity')) {
+        logActivity($_SESSION['useremail'] ?? 'System', 'Add Category', 'Product Management', "Category added: " . htmlspecialchars($category), 'INFO');
+    }
 
 }else{
 
     $_SESSION['status'] = "Category Added Field!";
     $_SESSION['status_code'] = "warning";
-
 
 }
 
@@ -60,27 +64,35 @@ if(isset($_POST['btnupdate'])){
     if($update->execute()){
         $_SESSION['status'] = "Category Update Successfully"; 
         $_SESSION['status_code'] = "success";
-    
+
+        // Log category update
+        if (function_exists('logActivity')) {
+            logActivity($_SESSION['useremail'] ?? 'System', 'Update Category', 'Product Management', "Category ID " . htmlspecialchars($id) . " updated to: " . htmlspecialchars($category), 'INFO');
+        }
     
     }else{
     
         $_SESSION['status'] = "Category Update Failed!";
         $_SESSION['status_code'] = "warning";
     
-    
     }
     }}
 
     If(isset($_POST['btndelete'])){
 
-     $delete=$pdo->prepare("delete from tbl_category where catid=".$_POST['btndelete']);
+     $catid = $_POST['btndelete'];
+     $delete=$pdo->prepare("delete from tbl_category where catid=:cid");
+     $delete->bindParam(':cid', $catid);
 
      if($delete->execute()){
 
         $_SESSION['status'] = "Deleted"; 
         $_SESSION['status_code'] = "success";
 
-
+        // Log category deletion
+        if (function_exists('logActivity')) {
+            logActivity($_SESSION['useremail'] ?? 'System', 'Delete Category', 'Product Management', "Category ID " . htmlspecialchars($catid) . " deleted", 'INFO');
+        }
 
      }else{
 
