@@ -132,11 +132,12 @@ include_once "header.php";
                                                 inv.total,
                                                 inv.customer_name,
                                                 inv.created_by,
+                                                inv.created_by_id,
                                                 COALESCE(u.username, 'Unknown') as created_by_username,
                                                 COUNT(det.id) as item_count,
                                                 SUM(det.qty) as total_qty
                                             FROM tbl_invoice inv
-                                            LEFT JOIN tbl_user u ON inv.created_by = u.userid
+                                            LEFT JOIN tbl_user u ON COALESCE(inv.created_by_id, inv.created_by) = u.userid
                                             LEFT JOIN tbl_invoice_details det ON inv.invoice_id = det.invoice_id
                                             WHERE inv.status = 'Pending'
                                             AND COALESCE(u.role, 'User') != 'Admin'

@@ -129,23 +129,30 @@ if (!$hideFooter):
               if (salesChart) {
                 salesChart.data.labels = [];
                 salesChart.data.datasets[0].data = [];
+                if (salesChart.data.datasets[1]) {
+                  salesChart.data.datasets[1].data = [];
+                }
                 salesChart.update();
               } else {
-                initChart([], []);
+                initChart([], [], []);
               }
               return;
             }
 
             $('#salesGraphMessage').text('');
             const labels = dataArray.map(d => d.label || '');
-            const data = dataArray.map(d => parseFloat(d.sales || 0));
-            console.log('[Sales] Labels:', labels, 'Data:', data);
+            const salesData = dataArray.map(d => parseFloat(d.sales || 0));
+            const depositsData = dataArray.map(d => parseFloat(d.deposits || 0));
+            console.log('[Sales] Labels:', labels, 'Sales:', salesData, 'Deposits:', depositsData);
 
             if (!salesChart) {
-              initChart(labels, data);
+              initChart(labels, salesData, depositsData);
             } else {
               salesChart.data.labels = labels;
-              salesChart.data.datasets[0].data = data;
+              salesChart.data.datasets[0].data = salesData;
+              if (salesChart.data.datasets[1]) {
+                salesChart.data.datasets[1].data = depositsData;
+              }
               salesChart.update({ duration: 500 });
             }
           },
@@ -156,7 +163,7 @@ if (!$hideFooter):
         });
       }
 
-      function initChart(labels, data) {
+      function initChart(labels, data, deposits) {
         console.log('[Chart] Initializing with', labels.length, 'data points');
         const $canvas = $('#salesGraphCanvas');
         if (!$canvas.length) {
@@ -179,6 +186,18 @@ if (!$hideFooter):
                 lineTension: 0.4,
                 pointRadius: 4,
                 pointBackgroundColor: 'rgba(54,162,235,1)',
+                borderCapStyle: 'butt'
+              }, {
+                label: 'Daily Deposits',
+                data: deposits || [],
+                fill: false,
+                borderColor: 'rgba(255,206,86,1)',
+                backgroundColor: 'rgba(255,206,86,0.2)',
+                borderWidth: 2,
+                lineTension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: 'rgba(255,206,86,1)',
+                borderDash: [5, 5],
                 borderCapStyle: 'butt'
               }]
             },
@@ -208,7 +227,8 @@ if (!$hideFooter):
                 intersect: false,
                 callbacks: {
                   label: function(item) {
-                    return 'Sales: ' + formatCurrency(item.yLabel);
+                    const label = item.datasetLabel || (item.datasetIndex === 0 ? 'Sales' : 'Deposits');
+                    return label + ': ' + formatCurrency(item.yLabel);
                   }
                 }
               }

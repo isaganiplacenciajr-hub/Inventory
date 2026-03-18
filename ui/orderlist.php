@@ -96,11 +96,11 @@ try {
                         $branches = [];
                       }
                       if (empty($branches)) {
-                        $branches = [$activeBranch ?? 'Unknown'];
+                        $branches = [$activeBranch ?? ''];
                       }
                       foreach ($branches as $br) {
                         $branchName = trim($br);
-                        if ($branchName === '') continue;
+                        if ($branchName === '' || strtolower($branchName) === 'unknown') continue;
                         echo '<option value="' . htmlspecialchars($branchName) . '"' . ($filterBranch === $branchName ? ' selected' : '') . '>' . htmlspecialchars($branchName) . '</option>';
                       }
                       ?>

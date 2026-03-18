@@ -32,6 +32,10 @@ $cfg = $pdo->query("SELECT * FROM tbl_taxdis WHERE taxdis_id = 1 LIMIT 1")->fetc
 ob_end_flush();
 ?>
 
+<div class="content-wrapper">
+  <section class="content pt-3">
+    <div class="container-fluid">
+
 <!-- === Styles: sticky header + layout === -->
 <style type="text/css">
   .tableFixHead {
@@ -189,6 +193,9 @@ ob_end_flush();
                 <hr>
 
                 <div class="card-footer">
+                  <div class="text-center mb-2">
+                    <span id="paymentStatus" style="font-weight:bold; font-size:14px;">Complete Payment</span>
+                  </div>
                   <div class="text-center">
                     <button type="button" class="btn btn-success" id="btnSaveOrderAjax" name="btnsaveorder">Save Order</button>
                   </div>
@@ -252,6 +259,10 @@ ob_end_flush();
       </div>
     </div>
   </div>
+</div>
+
+    </div>
+  </section>
 </div>
 
 <?php require_once 'footer.php'; ?>
@@ -332,7 +343,7 @@ ob_end_flush();
     $(row).find('.saleprice').val(formatMoney(total));
   }
 
-  function calculate(){
+  function computeTotals(){
     let subtotal = 0, serviceFee = 0, depositTotal = 0;
     $('#itemtable tr').each(function(){
       const $r = $(this);
@@ -350,6 +361,7 @@ ob_end_flush();
     $('#txtsubtotal_id').val(formatMoney(subtotal));
     $('#txtservicefee').val(formatMoney(serviceFee));
     $('#txtdeposit').val(formatMoney(depositTotal));
+
     const discountPct = parseFloat($('#txtdiscount_p').val()||0);
     let discountN = (discountPct / 100) * subtotal;
     if (!discountPesoManual && document.activeElement.id !== 'txtdiscount_n') {
@@ -358,6 +370,7 @@ ob_end_flush();
       const manualVal = $('#txtdiscount_n').val();
       discountN = manualVal === "" ? 0 : parseFloat(manualVal) || 0;
     }
+
     const vatPct = parseFloat($('#txtvat_p').val()||0);
     let vatN = 0;
     const baseForVat = subtotal - discountN;
@@ -365,31 +378,56 @@ ob_end_flush();
       vatN = baseForVat - (baseForVat / (1 + vatPct / 100));
     }
     $('#txtvat_n').val(formatMoney(vatN));
+
     const total = subtotal + serviceFee + depositTotal - discountN;
-    const paid = parseFloat($('#txtpaid').val()||0)||0;
-    const due = total;
+    let paid = parseFloat($('#txtpaid').val()||0) || 0;
+    let due = total - paid;
     let change = paid - total;
+
+    const paymentMethod = $('input[name="rb"]:checked').val();
+
+    if (paymentMethod === 'cod') {
+      // COD means payment handled later, use total as due 0 and change 0 in POS UI
+      paid = 0;
+      due = 0;
+      change = 0;
+    }
+
+    if (due < 0) due = 0;
     if (change < 0) change = 0;
+
     $('#txttotal').val(formatMoney(total));
     $('#txtdue').val(formatMoney(due));
     $('#txtchange').val(formatMoney(change));
-    const paymentMethod = $('input[name="rb"]:checked').val();
+
     const $btn = $('#btnSaveOrderAjax');
+    let statusText = '';
+
     if (paymentMethod === 'cod') {
       $btn.prop('disabled', false)
           .removeClass('btn-danger').addClass('btn-success')
           .text('Save Order');
+      statusText = 'Complete Payment';
     } else {
-      if (paid < (total - 0.01)) {
+      if (paid < total - 0.01) {
         $btn.prop('disabled', true)
-        .removeClass('btn-success').addClass('btn-danger')
-        .text('Incomplete Payment');
+            .removeClass('btn-success').addClass('btn-danger')
+            .text('Incomplete Payment');
+        statusText = 'Incomplete Payment';
       } else {
         $btn.prop('disabled', false)
-        .removeClass('btn-danger').addClass('btn-success')
-        .text('Save Order');
+            .removeClass('btn-danger').addClass('btn-success')
+            .text('Save Order');
+        statusText = 'Complete Payment';
       }
     }
+
+    $('#paymentStatus').text(statusText);
+  }
+
+  // keep backward compatibility with existing calculate() calls
+  function calculate() {
+    computeTotals();
   }
 
   // helper to show/hide payment fields just like admin POS
@@ -400,15 +438,19 @@ ob_end_flush();
     if (paymentMethod === 'cod') {
       $container.hide();
       $('#txtdue').val('0.00');
-      $('#txtpaid').val('');
+      $('#txtpaid').val('0.00');
       $('#txtchange').val('0.00');
       $btn.prop('disabled', false)
           .removeClass('btn-danger').addClass('btn-success')
           .text('Save Order');
+      $('#paymentStatus').text('Complete Payment');
     } else {
       $container.show();
       calculate();
     }
+
+    // keep totals in sync when switching payment type
+    calculate();
   }
 
   // Escape HTML helper
@@ -526,6 +568,17 @@ ob_end_flush();
     // When subtotal changes, re-sync discount fields
     $('#txtsubtotal_id').on('input', function () {
       $('#txtdiscount_p').trigger('input');
+    });
+
+    // Paid and discount changes should recalc totals immediately
+    $('#txtpaid, #txtdiscount_n, #txtdiscount_p').on('input', function () {
+      calculate();
+    });
+
+    // Service fee can be mutated by row-level service-select, but calculate now runs on change events via delegated handlers.
+    // If there is any separate service dropdown, recalc there too.
+    $('#service, #txtservicefee').on('change input', function() {
+      calculate();
     });
 
     // Toggle payment fields when method changes (and keep button colors in sync)

@@ -47,11 +47,16 @@ $(function(){
       url: 'backup_system.php',
       method: 'POST',
       dataType: 'json',
-success: function(res){
+      success: function(res){
         console.log('Backup response:', res);  // Debug
         if(res.success && res.filename){
-          var msg = `Backup created: ${res.fileCount || '?'} files, ${(res.size / 1024 / 1024).toFixed(1)}MB. Downloading...`;
+          // Show success status immediately once ZIP is generated on server
+          var msg = `Backup created successfully. Files: ${res.fileCount || '?'}; Size: ${(res.size / 1024 / 1024).toFixed(1)}MB.`;
           $('#backupStatusMsg').addClass('alert alert-success').text(msg);
+
+          // Immediately report that zipper is ready
+          $('#backupStatusMsg').append(' <strong>ZIP sent to download process.</strong>');
+
           var link = document.createElement('a');
           link.href = 'download_backup.php?file=' + encodeURIComponent(res.filename);
           link.download = res.filename;

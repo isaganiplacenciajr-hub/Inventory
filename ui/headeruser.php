@@ -51,6 +51,16 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === '') {
       background-color: #007bff !important;
     }
 
+    html, body, .wrapper, .main-header, .main-sidebar, .content-wrapper, .content, .card, .table, .navbar, .sidebar, .dropdown-menu, .form-control, .btn, .modal-content {
+      transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease;
+    }
+
+    html.dark-mode,
+    body.dark-mode {
+      background-color: #121212 !important;
+      color: #e5e5e5 !important;
+    }
+
     /* Dark mode payload */
     body.dark-mode {
       background-color: #121212 !important;
@@ -331,14 +341,28 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === '') {
       color: #fff !important;
     }
   </style>
+  <script>
+    (function() {
+      var storedDarkMode = localStorage.getItem('darkMode');
+      if (storedDarkMode === 'true') {
+        document.documentElement.classList.add('dark-mode');
+        if (document.body) document.body.classList.add('dark-mode');
+      } else if (storedDarkMode === 'false') {
+        document.documentElement.classList.remove('dark-mode');
+        if (document.body) document.body.classList.remove('dark-mode');
+      }
+    })();
+  </script>
 </head>
 
 <body class="hold-transition sidebar-mini layout-fixed">
 <script>
   function setDarkMode(enabled) {
     if (enabled) {
+      document.documentElement.classList.add('dark-mode');
       document.body.classList.add('dark-mode');
     } else {
+      document.documentElement.classList.remove('dark-mode');
       document.body.classList.remove('dark-mode');
     }
     localStorage.setItem('darkMode', enabled ? 'true' : 'false');
@@ -449,6 +473,4 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === '') {
   </aside>
 
   <!-- CONTENT -->
-  <div class="content-wrapper">
-    <section class="content pt-3">
-      <div class="container-fluid">
+  <!-- Content wrapper and container opened by page template (user.php, user_settings.php) -->

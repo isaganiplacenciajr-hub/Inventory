@@ -165,7 +165,7 @@ function stockStatus($qty) {
                 </div>
 
                 <div class="col-lg-3 col-md-6 col-12 mb-3">
-                    <div class="card card-custom h-100 border-0" onclick="window.location.href='userorderlist.php?status=Complete'" style="cursor:pointer;">
+                    <div class="card card-custom h-100 border-0" onclick="window.location.href='userorderlist.php?status=Complete&date=<?php echo $today; ?>'" style="cursor:pointer;">
                         <div class="card-body d-flex align-items-center">
                             <div class="mr-3 text-success bg-soft-green p-3 rounded-circle"><i class="fas fa-check-circle summary-icon text-success"></i></div>
                             <div>
@@ -390,6 +390,14 @@ function stockStatus($qty) {
                           <div class="inner">
                             <h4 id="totalTransactions">0</h4>
                             <p>Total Transactions</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-3 col-6">
+                        <div class="small-box bg-white p-3 border">
+                          <div class="inner">
+                            <h4 id="totalTankDeposits">₱0.00</h4>
+                            <p>Total Tank Deposits</p>
                           </div>
                         </div>
                       </div>

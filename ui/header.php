@@ -47,6 +47,16 @@ if (!isset($pdo)) {
       background-color: #007bff !important;
     }
 
+    html, body, .wrapper, .main-header, .main-sidebar, .content-wrapper, .content, .card, .table, .navbar, .sidebar, .dropdown-menu, .form-control, .btn, .modal-content {
+      transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease;
+    }
+
+    html.dark-mode,
+    body.dark-mode {
+      background-color: #121212 !important;
+      color: #e5e5e5 !important;
+    }
+
     body.dark-mode {
       background-color: #121212 !important;
       color: #e5e5e5 !important;
@@ -197,6 +207,18 @@ if (!isset($pdo)) {
       color: #fff !important;
     }
   </style>
+  <script>
+    (function() {
+      var storedDarkMode = localStorage.getItem('darkMode');
+      if (storedDarkMode === 'true') {
+        document.documentElement.classList.add('dark-mode');
+        if (document.body) document.body.classList.add('dark-mode');
+      } else if (storedDarkMode === 'false') {
+        document.documentElement.classList.remove('dark-mode');
+        if (document.body) document.body.classList.remove('dark-mode');
+      }
+    })();
+  </script>
   <?php 
     $currentPage = basename($_SERVER['PHP_SELF']);
   ?>
@@ -206,8 +228,10 @@ if (!isset($pdo)) {
 <script>
   function setDarkMode(enabled) {
     if (enabled) {
+      document.documentElement.classList.add('dark-mode');
       document.body.classList.add('dark-mode');
     } else {
+      document.documentElement.classList.remove('dark-mode');
       document.body.classList.remove('dark-mode');
     }
     localStorage.setItem('darkMode', enabled ? 'true' : 'false');

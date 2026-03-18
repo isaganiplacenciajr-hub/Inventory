@@ -42,9 +42,16 @@ if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
 }
 
 // Exclude these paths from backup (relative to root)
-$excludePatterns = '/^(?:backups|\\.git|node_modules|logs|temp|vendor|cache|storage|\.env\.local|\.env\.bak)/i';
+$excludePatterns = '/^(?:backups|\\.git|node_modules|logs|temp|vendor|cache|storage|\.env\.local|\.env\.bak)/i';$excludeFileExts = ['log','mp4','mp3','mkv','tmp','swp','bak'];
+function shouldExcludePath($localPath, $excludePatterns, $excludeFileExts) {
+    if ($localPath === '' || preg_match($excludePatterns, $localPath)) {
+        return true;
+    }
+    $ext = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
+    return $ext && in_array($ext, $excludeFileExts, true);
+}
 
-function addAllToZip($folder, $zip, $root, $excludePatterns, &$stats) {
+function addAllToZip($folder, $zip, $root, $excludePatterns, $excludeFileExts, &$stats) {
     debug_log('Scanning folder: ' . $folder);
     $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($folder, FilesystemIterator::SKIP_DOTS));
     foreach ($rii as $file) {
@@ -54,12 +61,12 @@ function addAllToZip($folder, $zip, $root, $excludePatterns, &$stats) {
         $pathName = $file->getPathname();
         $localPath = ltrim(str_replace($root, '', $pathName), '/\\');
 
-        if ($localPath === '' || preg_match($excludePatterns, $localPath)) {
+        if (shouldExcludePath($localPath, $excludePatterns, $excludeFileExts)) {
             $stats['skipped']++;
             debug_log('SKIP: ' . $localPath);
             continue;
         }
-        if (!is_readable($pathName)) {
+        if (!$file->isReadable()) {
             $stats['unreadable']++;
             debug_log('NOT READABLE: ' . $localPath);
             continue;
@@ -79,7 +86,7 @@ function addAllToZip($folder, $zip, $root, $excludePatterns, &$stats) {
 // Add all project files, excluding backup and open-source cache dirs
 $stats = ['total'=>0,'added'=>0,'skipped'=>0,'unreadable'=>0,'failed'=>0];
 debug_log('Scanning project tree: ' . $root);
-addAllToZip($root, $zip, $root, $excludePatterns, $stats);
+addAllToZip($root, $zip, $root, $excludePatterns, $excludeFileExts, $stats);
 $status = $zip->close();
 if ($status !== TRUE) {
     debug_log('Failed to finalize ZIP: ' . $zip->getStatusString());

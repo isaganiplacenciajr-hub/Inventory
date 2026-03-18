@@ -61,9 +61,12 @@ $filterRecent = isset($_GET['recent']) && $_GET['recent'] == '1';
 ?>
 
 <!-- Content Wrapper. Contains page content -->
-<div class="row mb-2">
-  <div class="col-lg-12">
-    <div class="card card-primary card-outline">
+<div class="content-wrapper">
+  <section class="content pt-3">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-lg-12">
+          <div class="card card-primary card-outline">
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
           <h5 class="m-0">
@@ -84,11 +87,11 @@ $filterRecent = isset($_GET['recent']) && $_GET['recent'] == '1';
                     $branchOptions = $stmt->fetchAll(PDO::FETCH_COLUMN);
                   }
                   if (empty($branchOptions)) {
-                    $branchOptions = [$activeBranch ?? 'Unknown'];
+                    $branchOptions = [$activeBranch ?? ''];
                   }
                   foreach ($branchOptions as $br) {
                     $brValue = trim($br);
-                    if ($brValue === '') continue;
+                    if ($brValue === '' || strtolower($brValue) === 'unknown') continue;
                     echo '<option value="' . htmlspecialchars($brValue) . '"' . ($filterBranch === $brValue ? ' selected' : '') . '>' . htmlspecialchars($brValue) . '</option>';
                   }
                 ?>
@@ -243,16 +246,22 @@ $filterRecent = isset($_GET['recent']) && $_GET['recent'] == '1';
     echo '<td><span class="badge badge-danger">' . htmlspecialchars($invoice->payment_type) . '</span></td>';
   }
 
+  // Normalize status and payment type for comparisons
+  $status = isset($invoice->status) ? trim($invoice->status) : 'Complete';
+  $statusLower = strtolower($status);
+  $paymentType = isset($invoice->payment_type) ? trim($invoice->payment_type) : '';
+  $paymentTypeLower = strtolower($paymentType);
+
   // Display status badge
   $statusBadge = 'badge-secondary';
-  if ($invoice->status === 'Complete') {
+  if ($statusLower === 'complete') {
     $statusBadge = 'badge-success';
-  } elseif ($invoice->status === 'Pending') {
+  } elseif ($statusLower === 'pending') {
     $statusBadge = 'badge-warning';
-  } elseif ($invoice->status === 'Rejected') {
+  } elseif ($statusLower === 'rejected') {
     $statusBadge = 'badge-danger';
   }
-  echo '<td><span class="badge ' . $statusBadge . '">' . htmlspecialchars($invoice->status ?? 'Complete') . '</span></td>';
+  echo '<td><span class="badge ' . $statusBadge . '">' . htmlspecialchars($status) . '</span></td>';
 
   // Action buttons
   echo '<td>';
@@ -260,20 +269,29 @@ $filterRecent = isset($_GET['recent']) && $_GET['recent'] == '1';
   echo '<span class="fa fa-print"></span>';
   echo '</button>';
 
-  // Mark as Done logic (COD, Pending, permission, consent, expiry)
-  if ($invoice->payment_type == 'cod' && $invoice->status === 'Pending') {
-    // Fetch user permission fields
-    $userStmt = $pdo->prepare("SELECT cod_self_completion_permission, cod_permission_expiry, admin_consent FROM tbl_user WHERE userid = ?");
-    $userStmt->execute([$_SESSION['userid']]);
-    $userPerm = $userStmt->fetch(PDO::FETCH_ASSOC);
-    $canMark = false;
-    if ($userPerm && $userPerm['cod_self_completion_permission'] && $userPerm['admin_consent']) {
-      if (!empty($userPerm['cod_permission_expiry']) && strtotime($userPerm['cod_permission_expiry']) > time()) {
-        $canMark = true;
+  // Mark as Done logic (Pending only, COD permission enforced; non-COD pending also allowed)
+  $isPending = ($statusLower === 'pending');
+  $isCOD = ($paymentTypeLower === 'cod');
+
+  if ($isPending) {
+    $canMark = true;
+    if ($isCOD) {
+      // COD users require self-completion permission and admin consent
+      $userStmt = $pdo->prepare("SELECT cod_self_completion_permission, cod_permission_expiry, admin_consent FROM tbl_user WHERE userid = ?");
+      $userStmt->execute([$_SESSION['userid']]);
+      $userPerm = $userStmt->fetch(PDO::FETCH_ASSOC);
+      $canMark = false;
+      if ($userPerm && $userPerm['cod_self_completion_permission'] && $userPerm['admin_consent']) {
+        if (empty($userPerm['cod_permission_expiry']) || strtotime($userPerm['cod_permission_expiry']) > time()) {
+          $canMark = true;
+        }
       }
     }
+
     if ($canMark) {
-      echo ' <button class="btn btn-success btn-mark-done ml-1" style="padding: 6px 12px; font-size: 14px;" data-invoice-id="' . $invoice->invoice_id . '"><i class="fas fa-check"></i></button>';
+      echo ' <button class="btn btn-success btn-sm btn-mark-done ml-1" style="padding: 6px 10px; font-size: 13px; display:inline-flex; align-items:center; gap:5px;" data-invoice-id="' . $invoice->invoice_id . '" data-toggle="tooltip" title="Mark as Done"><i class="fas fa-check"></i>Done</button>';
+    } else {
+      echo ' <button class="btn btn-secondary btn-sm ml-1" style="padding: 6px 10px; font-size: 13px; display:inline-flex; align-items:center; gap:5px;" disabled title="COD completion not enabled or expired"><i class="fas fa-lock"></i>Locked</button>';
     }
   }
   echo '</td>';
@@ -294,7 +312,8 @@ $filterRecent = isset($_GET['recent']) && $_GET['recent'] == '1';
         </div>
       </div>
     </div>
-  </div>
+  </section>
+</div>
 
 <!-- Receipt Modal -->
 <div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-labelledby="receiptModalLabel" aria-hidden="true">
@@ -337,7 +356,8 @@ $pageScript = <<<EOD
 
     // Mark as Done button
     $(document).on('click', '.btn-mark-done', function() {
-      var invoiceId = $(this).data('invoice-id');
+      var btn = $(this);
+      var invoiceId = btn.data('invoice-id');
       Swal.fire({
         title: 'Mark as Done',
         text: 'Are you sure you want to complete this order?',
@@ -347,13 +367,30 @@ $pageScript = <<<EOD
         cancelButtonText: 'Cancel'
       }).then((result) => {
         if (result.isConfirmed) {
+          btn.prop('disabled', true);
           $.post('mark_order_done.php', {order_id: invoiceId}, function(resp) {
-            if (resp.success) {
-              Swal.fire('Completed!', 'Order marked as complete.', 'success').then(() => location.reload());
+            console.log('mark_order_done response:', resp);
+            if (resp && resp.success) {
+              var row = btn.closest('tr');
+              var pendingBadge = row.find('td span.badge').filter(function() {
+                return $(this).text().trim().toLowerCase() === 'pending';
+              });
+              if (pendingBadge.length) {
+                pendingBadge.removeClass('badge-warning').addClass('badge-success').text('Complete');
+              }
+              btn.remove();
+              Swal.fire('Completed!', 'Order marked as complete.', 'success');
             } else {
-              Swal.fire('Error', resp.message || 'Failed to complete order.', 'error');
+              var msg = (resp && resp.message) ? resp.message : 'Failed to complete order. Please try again.';
+              Swal.fire('Error', msg, 'error');
+              btn.prop('disabled', false);
             }
-          }, 'json');
+          }, 'json').fail(function(xhr, textStatus, errorThrown) {
+            console.error('mark_order_done fail', textStatus, errorThrown, xhr.responseText);
+            var errorMessage = 'Request failed: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : (xhr.responseText || textStatus));
+            Swal.fire('Error', errorMessage, 'error');
+            btn.prop('disabled', false);
+          });
         }
       });
     });
